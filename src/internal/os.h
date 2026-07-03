@@ -30,12 +30,15 @@ static inline void*
 sys_alloc(
     size_t  nbytes
 ){
-    void   *mem =mmap(nullptr, 
-                      nbytes, 
-                      PROT_READ | PROT_WRITE,      //  can read & write 
-                      MAP_PRIVATE | MAP_ANONYMOUS, //  private to current process, not file-backed
-                      -1,                          //  MAP_ANONYMOUS => -1 to fd, 0 to offs
-                      0);
+    void   *mem = mmap
+    (
+        nullptr, 
+        nbytes, 
+        PROT_READ | PROT_WRITE,      //  can read & write 
+        MAP_PRIVATE | MAP_ANONYMOUS, //  private to current process, not file-backed
+        -1,                          //  MAP_ANONYMOUS => -1 to fd, 0 to offs
+        0
+    );
                       
     return (mem == MAP_FAILED)? nullptr : mem;
 }
@@ -64,7 +67,8 @@ sys_aligned_alloc(
     size_t      nbytes_req;
     
     nbytes_req  = nbytes + align;
-    raw_mem     = (uint8_t*)mmap(
+    raw_mem     = (uint8_t*)mmap
+    (
         nullptr, 
         nbytes_req, 
         PROT_READ | PROT_WRITE, 

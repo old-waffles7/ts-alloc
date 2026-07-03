@@ -13,6 +13,9 @@
 
 #include    <assert.h>
 
+//  remove
+#include    "opt.h"
+
 
 #define     ALIGN_UP(x, align)      (((x) + ((align) - 1)) & ~((align) - 1))
 #define     ALIGN_DOWN(x, align)    ((x) & ~((align) - 1))
@@ -21,6 +24,7 @@
 #define     MAX(x,y)                (((x) > (y))? (x):(y))
 
 
+#include    <stdbool.h>
 #include    <stddef.h>
 #include    <stdint.h>
 typedef int8_t  byte_t;
