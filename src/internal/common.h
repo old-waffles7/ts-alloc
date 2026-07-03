@@ -37,5 +37,10 @@ typedef double  float32_t;
     #define HAS_FLOAT16
 #endif
 
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
+#else
+    #define nullptr ((void*)0)
+#endif
+
 
 #endif  //COMMON_H

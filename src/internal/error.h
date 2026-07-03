@@ -23,6 +23,7 @@
 enum TSALLOC_ERROR    : uint8_t
 {
     TSALLOC_SUCCESS,            ///< operation completed successfully
+    TSALLOC_OS_ALLOC_ERR,       ///< os could not allocate memory
     TSALLOC_AUXIL_ALLOC_ERR,    ///< auxilliary allocator could not allocate memory
     TSALLOC_AUXIL_FREE_ERR,     ///< auxilliary allocator could not free memory
     TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
