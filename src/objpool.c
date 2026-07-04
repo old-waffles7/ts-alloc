@@ -41,10 +41,10 @@ chunk_create(
         set_tsalloc_error
         (
             error_ctx,
-            "chunk_create()::objpool.c os-allocation error",
-            TSALLOC_OS_ALLOC_ERR
+            "chunk_create()::objpool.c os allocation error",
+            TSALLOC_OS_ERR
         );
-        return TSALLOC_OS_ALLOC_ERR;
+        return TSALLOC_OS_ERR;
     }
 
     chunk_t    *chunk;

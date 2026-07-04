@@ -34,12 +34,13 @@ typedef float   float32_t;
 typedef double  float32_t;
 #if defined(FLT16_MAX) || defined(__FLT16_MAX__)
     typedef _Float16    float16_t;
-    #define HAS_FLOAT16
+#else
+    typedef float       float16_t
 #endif
 
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L
 #else
-    #define nullptr ((void*)0)
+    #define nullptr NULL
 #endif
 
 

@@ -13,6 +13,7 @@
 
 #include    <sys/mman.h>
 #include    <unistd.h>
+#include    <errno.h>
 
 #include    "common.h"
 
@@ -25,6 +26,8 @@
  * 
  * @param   nbytes  exact nbytes of memory to allocate
  * @return  pointer to the allocated memory region, or `nullptr` if mapping fails
+ * 
+ * @warning can set errno
  */
 static inline void*
 sys_alloc(
@@ -52,6 +55,8 @@ sys_alloc(
  * @param   nbytes  exact nbytes of memory to allocate
  * @param   align   integer to which start of memory segment will be aligned
  * @return  pointer to the allocated memory region, or `nullptr` if mapping fails
+ * 
+ * @warning can set errno
  */
 static inline void*
 sys_aligned_alloc(
@@ -114,12 +119,14 @@ sys_aligned_alloc(
  *          
  * @param   ptr     pointer to the start of the mapped memory region
  * @param   nbytes  exact nbytes originally requested via `sys_alloc`
+ * 
+ * @warning can set errno
  */
 static inline void
 sys_free(
     void   *ptr, 
-    size_t  nbytes)
-{
+    size_t  nbytes
+){
     if (!ptr)
     {
         return;
@@ -149,5 +156,14 @@ sys_page_size(void)
     return cached_page_size;
 }
 
+/*
+ * @brief   retrives system error-code implemented by os
+ *
+ * @return  exact os error-code
+*/
+static inline int
+sys_error_code(void){
+    return errno;
+}
 
 #endif  //OS_H
