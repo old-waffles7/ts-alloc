@@ -72,7 +72,7 @@ tsalloc_err_t
 pagetrie_insert(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
-    void               *page,
+    void               *ptr,
     void               *key
 ){
     node_t     *root;
@@ -81,7 +81,7 @@ pagetrie_insert(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)page) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;
@@ -124,7 +124,7 @@ pagetrie_insert(
 inline void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
-    void       *page
+    void       *ptr
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -132,7 +132,7 @@ pagetrie_lookup(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)page) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;
@@ -149,7 +149,7 @@ pagetrie_lookup(
 inline void 
 pagetrie_remove(
     pagetrie_t *pagetrie,
-    void       *page
+    void       *ptr
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -157,7 +157,7 @@ pagetrie_remove(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)page) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;

@@ -29,11 +29,11 @@ chunk_create(
 
     if (align <= sys_page_size())
     {
-        raw = sys_alloc(nbytes);
+        raw = sys_map(nbytes);
     }
     else
     {
-        raw = sys_aligned_alloc(align, nbytes);
+        raw = sys_aligned_map(align, nbytes);
     }
 
     if (!raw)
@@ -66,7 +66,12 @@ chunk_destroy(
     chunk_t    *chunk,
     size_t      nbytes
 ){
-    sys_free(chunk, nbytes);
+    if (!chunk)
+    {
+        return;
+    }
+    
+    sys_unmap(chunk, nbytes);
 }
 
 

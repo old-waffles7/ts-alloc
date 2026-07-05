@@ -24,7 +24,7 @@ typedef void*
     size_t  nbytes
 );
 
-typedef void*   
+typedef int   
 (*auxil_unmap_fn)(
     void   *extra,
     void   *ptr,
@@ -47,7 +47,10 @@ struct arena_config
      * @param   extra   opaque pointer to backend-specific state
      * @param   align   minimum alignment required for the allocation
      * @param   nbytes  exact nbytes of memory to allocate
+     * 
      * @return  pointer to the allocated memory region
+     * 
+     * @warning must be thread-safe (e.g., `mmap`, 'cudaMalloc` are thread-safe)
      */
     auxil_map_fn    auxil_map;
 
@@ -57,11 +60,17 @@ struct arena_config
      * @param   extra   opaque pointer to backend-specific state
      * @param   ptr     pointer to the start of the mapped memory region
      * @param   nbytes  exact nbytes originally requested
+     * 
+     * @return  exactly 0 on success, otherwise failure
+     * 
+     * @warning must be thread-safe (e.g., 'munmap`, `cudaFree` are thread-safe )
      */
     auxil_unmap_fn  auxil_unmap;
 
-    void   *extra;      /**< pointer to state for use by user in auxiliary mapping, unmapping functions */
-    size_t  def_align;  /**< default hardware alignment requirement for this backend */
+    void   *extra;          ///< pointer to state for use by user in auxiliary mapping, unmapping functions
+    size_t  auxil_align;    ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
+
+    bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
 };
 
 typedef struct arena_config arena_conf_t;
@@ -76,6 +85,7 @@ typedef struct arena_config arena_conf_t;
  * @param   extra   opaque pointer to backend-specific state (unused in default)
  * @param   align   integer to which start of memory segment will be aligned
  * @param   nbytes  exact nbytes of memory to allocate
+ * 
  * @return  pointer to the allocated memory region, or `nullptr` if mapping fails
  */
 static inline void*   
@@ -86,10 +96,10 @@ def_auxil_map(
 ){
     if (align <= sys_page_size())
     {
-        return sys_alloc(nbytes);
+        return sys_map(nbytes);
     }
 
-    return sys_aligned_alloc(nbytes, align);
+    return sys_aligned_map(nbytes, align);
 }
 
 /**
@@ -102,13 +112,13 @@ def_auxil_map(
  * @param   ptr     pointer to the start of the mapped memory region
  * @param   nbytes  exact nbytes originally requested during mapping
  */
-static inline void
+static inline int
 def_auxil_unmap(
     void   *extra,
     void   *ptr,
     size_t  nbytes
 ){
-    sys_free(ptr, nbytes);
+    return sys_unmap(ptr, nbytes);
 }
 
 

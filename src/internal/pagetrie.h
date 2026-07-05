@@ -54,7 +54,7 @@ pagetrie_deinit(
  * 
  * @param   error_ctx   pointer to the error context struct
  * @param   pagetrie    pointer to the pagetrie instance
- * @param   page        virtual memory address to map
+ * @param   ptr         virtual memory address in page to map
  * @param   key         pointer to the metadata to associate with the page
  * 
  * @return  status code representing success or failure
@@ -63,7 +63,7 @@ tsalloc_err_t
 pagetrie_insert(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
-    void               *page,
+    void               *ptr,
     void               *key
 );
 
@@ -71,26 +71,26 @@ pagetrie_insert(
  * @brief   retrieves the metadata key associated with a virtual page
  * 
  * @param   pagetrie    pointer to the pagetrie instance
- * @param   page        virtual memory address to look up
+ * @param   ptr         virtual memory address in page to look up
  * 
  * @return  pointer to the metadata key, or nullptr if not found
  */
 inline void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
-    void       *page
+    void       *ptr
 );
 
 /*
  * @brief   removes the metadata key associated with a virtual page
  * 
  * @param   pagetrie    pointer to the pagetrie instance
- * @param   page        virtual memory address to remove from the trie
+ * @param   ptr         virtual memory address in page to remove from the trie
  */
 inline void 
 pagetrie_remove(
     pagetrie_t *pagetrie,
-    void       *page
+    void       *ptr
 );
 
 

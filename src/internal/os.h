@@ -30,7 +30,7 @@
  * @warning can set errno
  */
 static inline void*
-sys_alloc(
+sys_map(
     size_t  nbytes
 ){
     void   *mem = mmap
@@ -59,7 +59,7 @@ sys_alloc(
  * @warning can set errno
  */
 static inline void*
-sys_aligned_alloc(
+sys_aligned_map(
     size_t  align,
     size_t  nbytes
 ){
@@ -118,12 +118,12 @@ sys_aligned_alloc(
  * capacity used during allocation via `sys_alloc`
  *          
  * @param   ptr     pointer to the start of the mapped memory region
- * @param   nbytes  exact nbytes originally requested via `sys_alloc`
+ * @param   nbytes  exact nbytes originally requested via `sys_alloc` or `sys_aligned_alloc`
  * 
  * @warning can set errno
  */
-static inline void
-sys_free(
+static inline int
+sys_unmap(
     void   *ptr, 
     size_t  nbytes
 ){
@@ -131,7 +131,7 @@ sys_free(
     {
         return;
     }
-    munmap(ptr, nbytes);
+    return munmap(ptr, nbytes);
 }
 
 /**
