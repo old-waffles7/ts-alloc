@@ -37,7 +37,7 @@ typedef struct iobjpool objpool_t;
  * @param   objpool     pointer to the object pool to initialize
  * @param   align       memory alignment requirement (must be power of 2), defaults to 8 on 0
  * @param   nbytes_obj  size of the object in bytes
- * @param   nobjs_chunk number of objects to allocate per chunk, defaults to 256 on 0
+ * @param   nobjs_chunk minimum number of objects to allocate per chunk, defaults to 256 on 0
  * 
  * @return  status code representing success or failure
  */

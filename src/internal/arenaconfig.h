@@ -17,6 +17,21 @@
 #include    "os.h"
 
 
+typedef void*   
+(*auxil_map_fn)(
+    void   *extra,
+    size_t  align,
+    size_t  nbytes
+);
+
+typedef void*   
+(*auxil_unmap_fn)(
+    void   *extra,
+    void   *ptr,
+    size_t  nbytes
+);
+
+
 /**
  * @brief   defines the hardware backend interface and configuration for an arena
  * 
@@ -34,12 +49,7 @@ struct arena_config
      * @param   nbytes  exact nbytes of memory to allocate
      * @return  pointer to the allocated memory region
      */
-    void*   (*auxil_map)
-    (
-        void   *extra,
-        size_t  align,
-        size_t  nbytes
-    );
+    auxil_map_fn    auxil_map;
 
     /**
      * @brief   core deallocation function pointer
@@ -48,12 +58,7 @@ struct arena_config
      * @param   ptr     pointer to the start of the mapped memory region
      * @param   nbytes  exact nbytes originally requested
      */
-    void    (*auxil_unmap)
-    (
-        void   *extra,
-        void   *ptr,
-        size_t  nbytes
-    );
+    auxil_unmap_fn  auxil_unmap;
 
     void   *extra;      /**< pointer to state for use by user in auxiliary mapping, unmapping functions */
     size_t  def_align;  /**< default hardware alignment requirement for this backend */
