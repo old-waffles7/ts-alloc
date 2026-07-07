@@ -94,6 +94,7 @@ struct region
     size_t          nbytes;
     size_t          mem_offset;
     uintptr_t       origin;
+    bool            is_slab;
     bool            is_alloc;
 };
 typedef struct region   region_t;
@@ -114,6 +115,8 @@ region_destroy(
     region_t           *region
 );
 
+//  for huge allocation that go directly to mmap, add functionality to prevernt them from being 
+//  part of a coalesce operation. a flag in region and check in this function
 inline void
 region_get_adj(
     pagetrie_t *region_ptrie,

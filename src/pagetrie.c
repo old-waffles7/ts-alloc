@@ -19,7 +19,7 @@
 union node
 {
     union node *child[NCHILD_NODES];
-    void       *key[NCHILD_NODES];
+    void       *data[NCHILD_NODES];
 };
 
 typedef union node  node_t;
@@ -72,8 +72,8 @@ tsalloc_err_t
 pagetrie_insert(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
-    void               *ptr,
-    void               *key
+    void               *key,
+    void               *data
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -81,7 +81,7 @@ pagetrie_insert(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)key) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;
@@ -116,7 +116,7 @@ pagetrie_insert(
         root->child[idx1]->child[idx2]  = node;
     }
 
-    root->child[idx1]->child[idx2]->key[idx3]   = key;
+    root->child[idx1]->child[idx2]->data[idx3]  = data;
 
     return TSALLOC_SUCCESS;
 }
@@ -124,7 +124,7 @@ pagetrie_insert(
 inline void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
-    void       *ptr
+    void       *key
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -132,7 +132,7 @@ pagetrie_lookup(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)key) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;
@@ -143,13 +143,13 @@ pagetrie_lookup(
         return nullptr;
     }
 
-    return root->child[idx1]->child[idx2]->key[idx3];
+    return root->child[idx1]->child[idx2]->data[idx3];
 }
 
-inline void 
+inline bool 
 pagetrie_remove(
     pagetrie_t *pagetrie,
-    void       *ptr
+    void       *key
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -157,7 +157,7 @@ pagetrie_remove(
     uintptr_t   idx2;
     uintptr_t   idx3;
 
-    page_addr   = ((uintptr_t)ptr) >> MIN_PAGE_SHIFT;
+    page_addr   = ((uintptr_t)key) >> MIN_PAGE_SHIFT;
     idx1        = (page_addr >> (2 * LEVEL_SHIFT)) & LEVEL_MASK;
     idx2        = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
     idx3        = page_addr & LEVEL_MASK;
@@ -165,8 +165,10 @@ pagetrie_remove(
     
     if (!root->child[idx1] || !(root->child[idx1]->child[idx2]))
     {
-        return;
+        return false;
     }
 
-    root->child[idx1]->child[idx2]->key[idx3]   = nullptr;
+    root->child[idx1]->child[idx2]->data[idx3]  = nullptr;
+
+    return true;
 }
