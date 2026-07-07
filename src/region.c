@@ -8,6 +8,50 @@
 #include    "internal/arenaconfig.h"
 
 
+//          --- region_heap_t implementation ---
+
+static inline reg_heap_node_t*
+region_heap_merge(
+    reg_heap_node_t    *lnode,
+    reg_heap_node_t    *rnode
+){
+    if (!lnode)
+    {
+        return rnode;
+    }
+    if (!rnode)
+    {
+        return lnode;
+    }
+
+    reg_heap_node_t    *root;
+    reg_heap_node_t    *child;
+
+    if (reg_heap_node_get_key(lnode) < reg_heap_node_get_key(rnode))
+    {
+        root    = lnode;
+        child   = rnode;
+    }
+    else
+    {
+        root    = rnode;
+        child   = lnode;
+    }
+
+    child->prev = root;
+    child->next = root->lchild;
+    if (root->lchild)
+    {
+        root->lchild->prev  = child;
+    }
+
+    root->lchild    = child;
+    root->next      = nullptr;
+    root->prev      = nullptr;
+    
+    return root;
+}
+
 inline tsalloc_err_t
 region_heap_init(
     tsalloc_errctx_t   *error_ctx,
@@ -42,13 +86,134 @@ region_heap_deinit(
     return TSALLOC_SUCCESS;
 }
 
+reg_heap_node_t*
+region_heap_pop(
+    region_heap_t  *region_heap
+){
+    reg_heap_node_t    *root;
+    reg_heap_node_t    *tail;
+    reg_heap_node_t    *curr;
 
-inline reg_heap_node_t*
-reg_heap_node_merge(
-    reg_heap_node_t    *a,
-    reg_heap_node_t    *b
-);
+    root    = region_heap->root;
+    if (!root)
+    {
+        return nullptr;
+    }
+    curr    = root->lchild;
+    if (!curr)
+    {
+        region_heap->root   = nullptr;
+        return root;
+    }
 
+    tail    = nullptr;
+    // initial pass
+    while (curr && curr->next)
+    {
+        reg_heap_node_t    *merge;
+        reg_heap_node_t    *pair_l;
+        reg_heap_node_t    *pair_r;
+        reg_heap_node_t    *next_pair;
+
+        pair_l      = curr;
+        pair_r      = pair_l->next;
+        next_pair   = pair_r->next;
+
+        merge       = region_heap_merge(pair_l, pair_r);
+        merge->prev = tail;
+        if (tail)
+        {
+            tail->next  = merge;
+        }
+        
+        tail    = merge;
+        curr    = next_pair;
+    }
+
+    // root had odd number of children
+    if (curr)
+    {
+        if (tail)
+        {
+            tail->next  = curr;
+        }
+        curr->prev  = tail;
+        tail        = curr;
+    }
+
+    //  second pass
+    while (curr && curr->prev)
+    {
+        reg_heap_node_t    *prev;
+
+        prev        = tail->prev;
+        tail->prev  = nullptr;
+        prev->next  = nullptr;
+        tail        = region_heap_merge(prev, tail);
+    }
+
+    region_heap->root   = tail;
+
+    *root   = (reg_heap_node_t){0};
+
+    return root;
+}
+
+inline void
+region_heap_push(
+    region_heap_t      *region_heap,
+    reg_heap_node_t    *node
+){
+    if (!node)
+    {
+        return;
+    }
+
+    *node   = (reg_heap_node_t){0};
+
+    region_heap->root = region_heap_merge(region_heap->root, node);
+}
+
+inline void
+region_heap_remove(
+    region_heap_t      *region_heap,
+    reg_heap_node_t    *node
+){
+    if (!node)
+    {
+        return;
+    }
+
+    if (region_heap->root == node)
+    {
+        region_heap_pop(region_heap);
+        return;
+    }
+
+    if (node->prev->lchild == node)
+    {
+        node->prev->lchild  = node->next;
+    }
+    else
+    {
+        node->prev->next    = node->next;
+    }
+    if (node->next)
+    {
+        node->next->prev    = node->prev;
+    }
+
+    region_heap_t   temp_heap;
+
+    temp_heap.root      = node;
+    region_heap_pop(&temp_heap);
+    region_heap->root   = region_heap_merge(region_heap->root, temp_heap.root);
+    
+    *node   = (reg_heap_node_t){0};
+}
+
+
+//          --- region_t implementation ---
 
 tsalloc_err_t
 region_create(

@@ -16,7 +16,6 @@ struct region_list_node
 {
     struct region_list_node    *prev;
 };
-
 typedef struct region_list_node reg_list_node_t;
 
 static inline region_t*
@@ -29,19 +28,26 @@ rlist_node_get_region(
 
 struct region_heap_node 
 {
-    struct region_node *lchild;
-    struct region_node *next;
-    struct region_node *prev;
+    struct region_heap_node    *next;
+    struct region_heap_node    *prev;
+    struct region_heap_node    *lchild;
 };
-
 typedef struct region_heap_node reg_heap_node_t;
 
-static inline void*
-rheap_node_get_key(
+static inline uintptr_t
+reg_heap_node_get_key(
     reg_heap_node_t    *node
 ){
-    return ((void*)(((byte_t*)node) - sizeof(reg_list_node_t)));
+    return ((uintptr_t)node);
 }
+
+static inline void*
+reg_heap_node_get_region(
+    reg_heap_node_t    *node
+){
+    return ((region_t*)(((byte_t*)node) - sizeof(reg_list_node_t)));
+}
+
 
 
 struct region_heap
@@ -49,7 +55,6 @@ struct region_heap
     reg_heap_node_t    *root;
     mutex_t             mutex;
 };
-
 typedef struct region_heap  region_heap_t;
 
 inline tsalloc_err_t
@@ -64,6 +69,23 @@ region_heap_deinit(
     region_heap_t      *reg_heap
 );
 
+reg_heap_node_t*
+region_heap_pop(
+    region_heap_t  *region_heap
+);
+
+inline void
+region_heap_push(
+    region_heap_t      *region_heap,
+    reg_heap_node_t    *node
+);
+
+inline void
+region_heap_remove(
+    region_heap_t      *region_heap,
+    reg_heap_node_t    *node
+);
+
 
 struct region
 {
@@ -72,10 +94,9 @@ struct region
     size_t          nbytes;
     size_t          mem_offset;
     uintptr_t       origin;
+    bool            is_alloc;
 };
-
 typedef struct region   region_t;
-
 
 tsalloc_err_t
 region_create(
@@ -107,6 +128,8 @@ region_coalesce(
     region_t       *radj,
     size_t          align
 );
+
+// cut our parts of regions
 
 
 #endif  //REGION_H
