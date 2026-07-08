@@ -6,32 +6,26 @@
 #include    "internal/mutex.h"
 
 
-static inline ipageheap_node_t*
-ipageheap_node_merge(
-    ipageheap_node_t   *node_1,
-    ipageheap_node_t   *node_2
+static inline pageheap_node_t*
+pageheap_node_merge(
+    pageheap_node_t   *node_1,
+    pageheap_node_t   *node_2
 ){
-    if (!node_1)
-    {
-        return node_2;
-    }
-    if (!node_2)
-    {
-        return node_1;
-    }
+    if (!node_1) return node_2;
+    if (!node_2) return node_1;
 
-    pageheap_node_t    *root;
-    pageheap_node_t    *child;
+    pageheap_node_t *root;
+    pageheap_node_t *child;
 
-    if (ipageheap_node_cmp(node_1, node_2))
+    if (ipageheap_node_cmp(coord_get_intrusive(node_1), coord_get_intrusive(node_2)))
     {
-        root    = &(node_1->coord);
-        child   = &(node_2->coord);
+        root  = node_1;
+        child = node_2;
     }
     else
     {
-        root    = &(node_2->coord);
-        child   = &(node_1->coord);
+        root  = node_2;
+        child = node_1;
     }
 
     child->prev = root;
@@ -41,45 +35,11 @@ ipageheap_node_merge(
         root->child_list.head->prev = child;
     }
 
-    root->child_list.head   = child;
-    root->next              = nullptr;
-    root->prev              = nullptr;
+    root->child_list.head = child;
+    root->prev            = nullptr; 
+    root->next            = nullptr;
 
-    return coord_get_intrusive(root);
-}
-
-inline tsalloc_err_t
-pageheap_init(
-    tsalloc_errctx_t   *error_ctx,
-    pageheap_t         *pageheap
-){
-    tsalloc_err_t   ret;
-    
-    ret = mutex_init(error_ctx, &(pageheap->mutex));
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    return TSALLOC_SUCCESS;
-}
-
-inline tsalloc_err_t
-pageheap_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    pageheap_t         *pageheap
-){
-    tsalloc_err_t   ret;
-
-    ret = mutex_deinit(error_ctx, &(pageheap->mutex));
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    return TSALLOC_SUCCESS;
+    return root;
 }
 
 ipageheap_node_t*
@@ -115,11 +75,7 @@ pageheap_pop(
         pair_r      = pair_l->next;
         next_pair   = pair_r->next;
 
-        merge       = &(ipageheap_node_merge
-        (
-            coord_get_intrusive(pair_l), 
-            coord_get_intrusive(pair_r)
-        )->coord);
+        merge       = pageheap_node_merge(pair_l, pair_r);
         merge->prev = tail;
         if (tail)
         {
@@ -142,18 +98,14 @@ pageheap_pop(
     }
 
     //  second pass
-    while (curr && curr->prev)
+    while (tail && tail->prev)
     {
         pageheap_node_t    *prev;
 
         prev        = tail->prev;
         tail->prev  = nullptr;
         prev->next  = nullptr;
-        tail        = &(ipageheap_node_merge
-        (
-            coord_get_intrusive(prev), 
-            coord_get_intrusive(tail)
-        )->coord);
+        tail        = pageheap_node_merge(prev, tail);
     }
 
     pageheap->root  = tail;
@@ -176,11 +128,7 @@ pageheap_insert(
 
     node->coord = (pageheap_node_t){0};
 
-    pageheap->root = &(ipageheap_node_merge
-    (
-        coord_get_intrusive(pageheap->root), 
-        node
-    )->coord);
+    pageheap->root = pageheap_node_merge(pageheap->root, &(node->coord));
 }
 
 inline void
@@ -219,13 +167,8 @@ pageheap_remove(
 
     temp_heap.root  = coord;
     pageheap_pop(&temp_heap);
-    pageheap->root = &(ipageheap_node_merge
-    (
-        coord_get_intrusive(pageheap->root), 
-        coord_get_intrusive(temp_heap.root)
-    )->coord);
+    
+    pageheap->root = pageheap_node_merge(pageheap->root, temp_heap.root);
     
     *coord  = (pageheap_node_t){0};
 }
-
-
