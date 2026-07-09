@@ -1,152 +1,331 @@
-/*
- * @file    pageheap.h
- * @brief   pairing heap implementation for memory pages, priotizes enqueuing of lowest virtual 
- *          address
+/**
+ * @file   genheap.h
+ * @brief  generic pairing heap implementation using macros
  */
 
- 
+
 #pragma once
-#ifndef PAGEHEAP_H
-#define PAGEHEAP_H
+#ifndef GENHEAP_H
+#define GENHEAP_H
 
 
-#include    "common.h"
-#include    "error.h"
-#include    "mutex.h"
-
-
-/*
- * @struct  pageheap_node
- * @brief   internal structural node for the pairing heap
+/**
+ * @brief   generates the intrusive linkage fields required for a heap node
+ * 
+ * @param   _type   the data type of the heap node
  */
-struct pageheap_node
-{
-    struct pageheap_node   *next;       ///< pointer to the next sibling node
-    struct pageheap_node   *prev;       ///< pointer to the previous sibling node
-    struct {
-        struct pageheap_node    *head;  ///< pointer to the first child node
-    } child_list;
-};
-typedef struct pageheap_node    pageheap_node_t;
+#define heap_coord(_type)       \
+    struct                      \
+    {                           \
+        _type   *next;          \   
+        _type   *prev;          \  
+        struct                  \
+        {                       \
+            _type   *head;      \   
+        } childlist;            \
+    }
 
-/*
- * @struct  intrusive_pageheap_node
- * @brief   wrapper node embedding heap coordinates and page memory
+/**
+ * @brief   generates a heap wrapper structure containing the root node
+ * 
+ * @param   _type   the data type of the heap node
  */
-struct intrusive_pageheap_node
-{
-    pageheap_node_t coord;  ///< embedded heap coordinate node
-    void           *page;   ///< pointer to the managed memory page
-};
-typedef struct intrusive_pageheap_node  ipageheap_node_t;
-
-
-/*
- * @brief   compares two intrusive pageheap nodes based on page address
- *
- * @param   node_1  pointer to the first node
- * @param   node_2  pointer to the second node
- *
- * @return  `true` if node_1 page address is greater than node_2, `false` otherwise
+#define heap(type)              \
+    struct                      \
+    {                           \
+        _type  *root;           \  
+    }
+    
+/**
+ * @brief   generates the merge function to combine two pairing heaps
+ * 
+ * @param   _attr         function attributes (e.g., static inline)
+ * @param   _prefix       prefix used for the generated function name
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
+ * @param   _cmp_func     comparison function to determine node priority
  */
-static inline bool
-ipageheap_node_cmp(
-    ipageheap_node_t   *node_1,
-    ipageheap_node_t   *node_2
-){
-    return ((uintptr_t)(node_1->page)) > ((uintptr_t)(node_2->page));
-}
+#define _GEN_HEAP_MERGE(                                                                            \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field,                                                                               \
+        _cmp_func                                                                                   \
+    )                                                                                               \
+                                                                                                    \
+    _attr _type*                                                                                    \
+    _prefix##_merge(                                                                                \
+        _type  *node_1,                                                                             \
+        _type  *node_2                                                                              \
+    )                                                                                               \
+    {                                                                                               \
+        if (!node_1)                                                                                \
+        {                                                                                           \
+            return node_2;                                                                          \
+        }                                                                                           \
+        if (!node_2)                                                                                \
+        {                                                                                           \
+            return node_1;                                                                          \
+        }                                                                                           \
+                                                                                                    \
+        _type  *_root;                                                                              \
+        _type  *_child;                                                                             \
+                                                                                                    \
+        if (_cmp_func(node_1, node_2))                                                              \
+        {                                                                                           \
+            _root   = node_1;                                                                       \
+            _child  = node_2;                                                                       \
+        }                                                                                           \
+        else                                                                                        \
+        {                                                                                           \
+            _root   = node_2;                                                                       \
+            _child  = node_1;                                                                       \
+        }                                                                                           \
+                                                                                                    \
+        heap_coord(_type) *root;                                                                    \
+        heap_coord(_type) *child;                                                                   \
+                                                                                                    \
+        root    = &(_root->_coord_field);                                                           \
+        child   = &(_child->_coord_field);                                                          \
+                                                                                                    \
+        child->prev = root;                                                                         \
+        child->next = root->childlist.head;                                                         \
+        if (root->childlist.head)                                                                   \
+        {                                                                                           \
+            root->childlist.head->prev  = child;                                                    \
+        }                                                                                           \
+                                                                                                    \
+        root->childlist.head    = child;                                                            \
+        root->prev              = nullptr;                                                          \
+        root->next              = nullptr;                                                          \
+                                                                                                    \
+        return _root;                                                                               \
+    }
 
-/*
- * @brief   retrieves the memory page pointer from an intrusive node
- *
- * @param   nod pointer to the intrusive node
- *
- * @return  pointer to the memory page
+/**
+ * @brief   generates the pop function to extract the root node
+ * 
+ * @param   _attr         function attributes
+ * @param   _prefix       prefix used for the generated function name
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
  */
-static inline void*
-ipageheap_node_get_page(
-    ipageheap_node_t   *node
-){
-    return node->page;
-}
+#define _GEN_HEAP_POP(                                                                              \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+                                                                                                    \
+    _attr _type*                                                                                    \
+    _prefix##_pop(                                                                                  \
+        struct _prefix##_heap *heap                                                                 \
+    )                                                                                               \
+    {                                                                                               \
+        _type  *root;                                                                               \
+        _type  *tail;                                                                               \
+        _type  *curr;                                                                               \
+                                                                                                    \
+        root    = heap->root;                                                                       \
+        if (!root)                                                                                  \
+        {                                                                                           \
+            return nullptr;                                                                         \
+        }                                                                                           \
+                                                                                                    \
+        curr    = root->_coord_field.childlist.head;                                                \
+        if (!curr)                                                                                  \
+        {                                                                                           \
+            heap->root          = nullptr;                                                          \
+            root->_coord_field  = (heap_coord(_type)){0};                                           \
+            return root;                                                                            \
+        }                                                                                           \
+        tail    = nullptr;                                                                          \
+                                                                                                    \
+        while (curr && curr->_coord_field.next)                                                     \
+        {                                                                                           \
+            _type  *merge;                                                                          \
+            _type  *pair_l;                                                                         \
+            _type  *pair_r;                                                                         \
+            _type  *next_pair;                                                                      \
+                                                                                                    \
+            pair_l      = curr;                                                                     \
+            pair_r      = pair_l->_coord_field.next;                                                \
+            next_pair   = pair_r->_coord_field.next;                                                \
+            merge       = _prefix##_merge(pair_l, pair_r);                                          \
+                                                                                                    \
+            merge->_coord_field.prev    = tail;                                                     \
+            if (tail)                                                                               \
+            {                                                                                       \
+                tail->_coord_field.next = merge;                                                    \
+            }                                                                                       \
+                                                                                                    \
+            tail    = merge;                                                                        \
+            curr    = next_pair;                                                                    \
+        }                                                                                           \
+                                                                                                    \
+        if (curr)                                                                                   \
+        {                                                                                           \
+            if (tail)                                                                               \
+            {                                                                                       \
+                tail->_coord_field.next = curr;                                                     \
+            }                                                                                       \
+            curr->_coord_field.prev = tail;                                                         \
+            tail                    = curr;                                                         \
+        }                                                                                           \
+                                                                                                    \
+        while (tail && tail->_coord_field.prev)                                                     \
+        {                                                                                           \
+            _type  *prev;                                                                           \
+                                                                                                    \
+            prev                    = tail->_coord_field.prev;                                      \
+            tail->_coord_field.prev = nullptr;                                                      \
+            prev->_coord_field.next = nullptr;                                                      \
+            tail                    = _prefix##_merge(prev, tail);                                  \
+        }                                                                                           \
+                                                                                                    \
+        heap->root          = tail;                                                                 \
+        root->_coord_field  = (heap_coord(_type)){0};                                               \
+                                                                                                    \
+        return root;                                                                                \
+    }
 
-/*
- * @brief   retrieves the coordinate node from an intrusive node
- *
- * @param   node    pointer to the intrusive node
- *
- * @return  pointer to the embedded coordinate node
+/**
+ * @brief   generates the insert function to add a node to the heap
+ * 
+ * @param   _attr         function attributes
+ * @param   _prefix       prefix used for the generated function name
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
  */
-static inline pageheap_t*
-ipageheap_node_get_coord(
-    ipageheap_node_t   *node
-){
-    return &(node->coord);
-}
+#define _GEN_HEAP_INSERT(                                                                           \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+                                                                                                    \
+    _attr void                                                                                      \
+    _prefix##_insert(                                                                               \
+        struct _prefix##_heap  *heap,                                                               \
+        _type                  *node                                                                \
+    )                                                                                               \
+    {                                                                                               \
+        if (!node)                                                                                  \
+        {                                                                                           \
+            return;                                                                                 \
+        }                                                                                           \
+                                                                                                    \
+        node->_coord_field  = (heap_coord(_type)){0};                                               \
+        heap->root          = _prefix##_merge(heap->root, node);                                    \
+    }
 
-/*
- * @brief   retrieves the parent intrusive node from a coordinate node
- *
- * @param   coord   pointer to the coordinate node
- *
- * @return  pointer to the parent intrusive node
+/**
+ * @brief   generates the remove function to extract an arbitrary node from the heap
+ * 
+ * @param   _attr         function attributes
+ * @param   _prefix       prefix used for the generated function name
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
  */
-static inline ipageheap_node_t*
-coord_get_intrusive(
-    pageheap_node_t    *coord
-){
-    return ((ipageheap_node_t*)coord);
-}
+#define _GEN_HEAP_REMOVE(                                                                           \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+                                                                                                    \
+    _attr void                                                                                      \
+    _prefix##_remove(                                                                               \
+        struct _prefix##_heap  *heap,                                                               \
+        _type                  *node                                                                \
+    )                                                                                               \
+    {                                                                                               \
+        if (!node)                                                                                  \
+        {                                                                                           \
+            return;                                                                                 \
+        }                                                                                           \
+                                                                                                    \
+        if (heap->root == node)                                                                     \
+        {                                                                                           \
+            _prefix##_pop(heap);                                                                    \
+            return;                                                                                 \
+        }                                                                                           \
+                                                                                                    \
+        if (node->_coord_field.prev->_coord_field.childlist.head == node)                           \
+        {                                                                                           \
+            node->_coord_field.prev->_coord_field.childlist.head    = node->_coord_field.next;      \
+        }                                                                                           \
+        else                                                                                        \
+        {                                                                                           \
+            node->_coord_field.prev->_coord_field.next              = node->_coord_field.next;      \
+        }                                                                                           \
+                                                                                                    \
+        if (node->_coord_field.next)                                                                \
+        {                                                                                           \
+            node->_coord_field.next->_coord_field.prev  = node->_coord_field.prev;                  \
+        }                                                                                           \
+                                                                                                    \
+        struct _prefix##_heap   temp_heap;                                                          \
+                                                                                                    \
+        temp_heap.root  = node;                                                                     \
+        _prefix##_pop(&temp_heap);                                                                  \
+                                                                                                    \
+        heap->root  = _prefix##_merge(heap->root, temp_heap.root);                                  \
+                                                                                                    \
+        node->_coord_field  = (heap_coord(_type)){0};                                               \
+    }
 
 
-/*
- * @struct  pageheap
- * @brief   root state for the pairing heap
+/**
+ * @brief   generates the complete pairing heap structure and operational functions
+ * 
+ * @param   _attr         function attributes applied to all generated functions
+ * @param   _prefix       prefix used for the heap struct and function names
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
+ * @param   _cmp_func     comparison function to determine node priority
  */
-struct pageheap
-{
-    pageheap_node_t    *root;   ///< pointer to the root node of the heap
-};
-typedef struct pageheap pageheap_t;
-
-/*
- * @brief   removes and returns the minimum node from the heap
- *
- * @param   pageheap    pointer to the pageheap
- *
- * @return  pointer to the popped intrusive node, or nullptr if empty
- */
-ipageheap_node_t*
-pageheap_pop(
-    pageheap_t *pageheap
-);
-
-/*
- * @brief   inserts a new node into the heap
- *
- * @param   error_ctx   pointer to the error context struct
- * @param   pageheap    pointer to the pageheap
- * @param   node        pointer to the intrusive node to insert
- */
-inline void
-pageheap_insert(
-    tsalloc_errctx_t   *error_ctx,
-    pageheap_t         *pageheap,
-    ipageheap_node_t   *node
-);
-
-/*
- * @brief   removes a specific node from the heap
- *
- * @param   pageheap    pointer to the pageheap
- * @param   node        pointer to the intrusive node to remove
- */
-inline void
-pageheap_remove(
-    pageheap_t         *pageheap,
-    ipageheap_node_t   *node
-);
-
-
-#endif  //PAGEHEAP_H
+#define gen_heap_func(                                                                              \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field,                                                                               \
+        _cmp_func                                                                                   \
+    )                                                                                               \
+                                                                                                    \
+    struct _prefix##_heap                                                                           \
+    {                                                                                               \
+        _type  *root;                                                                               \
+    };                                                                                              \
+                                                                                                    \
+    _GEN_HEAP_MERGE(                                                                                \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field,                                                                               \
+        _cmp_func                                                                                   \
+    )                                                                                               \
+                                                                                                    \
+    _GEN_HEAP_POP(                                                                                  \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+                                                                                                    \
+    _GEN_HEAP_INSERT(                                                                               \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+                                                                                                    \
+    _GEN_HEAP_REMOVE(                                                                               \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )
+    
+    
+#endif  //GENHEAP_H

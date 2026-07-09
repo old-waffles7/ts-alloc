@@ -131,8 +131,7 @@ macro_set_tsalloc_error(
  * @warning must be called precisely when the initial error occurs, not during bubbling
  */
 #define set_tsalloc_error(...)          \
-    _SET_TSALLOC_ERROR_DISPATCH         \
-    (                                   \
+    _SET_TSALLOC_ERROR_DISPATCH(        \
         __VA_ARGS__,                    \
         _SET_TSALLOC_ERROR_EXPLICIT_OS, \
         _SET_TSALLOC_ERROR_IMPLICIT_OS  \
