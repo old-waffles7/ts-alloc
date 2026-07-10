@@ -9,29 +9,29 @@
 #include    "genheap.h"
 
 
-struct span;
 typedef struct span span_t;
 
-
-typedef heap_coord(span_t)  bucket_coord;
-typedef heap(span_t)        bucket_t;
+//  forward declaration suffice for structure definitions
+gen_heap_struct(bucket, span_t)
+typedef heap(bucket)        bucket_t;
+typedef heap_coord(bucket)  bucket_coord_t;
 
 
 inline span_t*
 bucket_pop(
-    bucket_t   *heap
+    bucket_t   *bucket
 );
 
 inline void
 bucket_insert(
-    bucket_t   *heap,
-    span_t     *node
+    bucket_t   *bucket,
+    span_t     *span
 );
 
 inline void
 bucket_remove(
-    bucket_t   *heap,
-    span_t     *node
+    bucket_t   *bucket,
+    span_t     *span
 );
 
 

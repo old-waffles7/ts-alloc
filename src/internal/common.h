@@ -13,12 +13,14 @@
 
 #define     _POSIX_C_SOURCE 200112L
 #if defined(__linux__)
-    #define     _GNU_SOURCE
+    #ifndef _GNU_SOURCE
+        #define     _GNU_SOURCE
+    #endif  //_GNU_SOURCE
 #elif defined(__APPLE__)
     #define     _DARWIN_C_SOURCE
 #elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     #define     _BSD_SOURCE
-#endif
+#endif  //OS
 
 
 #include    <assert.h>
@@ -41,7 +43,7 @@ typedef int8_t  byte_t;
 
 #include    <float.h>
 typedef float   float32_t;
-typedef double  float32_t;
+typedef double  float64_t;
 #if defined(FLT16_MAX) || defined(__FLT16_MAX__)
     typedef _Float16    float16_t;
 #else

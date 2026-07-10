@@ -1,41 +1,12 @@
 /**
  * @file   genheap.h
- * @brief  generic pairing heap implementation using macros
+ * @brief  generic pairing heap templete using macros
  */
 
 
 #pragma once
 #ifndef GENHEAP_H
 #define GENHEAP_H
-
-
-/**
- * @brief   generates the intrusive linkage fields required for a heap node
- * 
- * @param   _type   the data type of the heap node
- */
-#define heap_coord(_type)       \
-    struct                      \
-    {                           \
-        _type   *next;          \   
-        _type   *prev;          \  
-        struct                  \
-        {                       \
-            _type   *head;      \   
-        } childlist;            \
-    }
-
-
-/**
- * @brief   generates a heap wrapper structure containing the root node
- * 
- * @param   _type   the data type of the heap node
- */
-#define heap(_type)             \
-    struct                      \
-    {                           \
-        _type  *root;           \  
-    }
 
 
 /**
@@ -84,22 +55,16 @@
             _child  = node_1;                                                                       \
         }                                                                                           \
                                                                                                     \
-        heap_coord(_type) *root;                                                                    \
-        heap_coord(_type) *child;                                                                   \
-                                                                                                    \
-        root    = &(_root->_coord_field);                                                           \
-        child   = &(_child->_coord_field);                                                          \
-                                                                                                    \
-        child->prev = root;                                                                         \
-        child->next = root->childlist.head;                                                         \
-        if (root->childlist.head)                                                                   \
+        if (_root->_coord_field.childlist.head)                                                     \
         {                                                                                           \
-            root->childlist.head->prev  = child;                                                    \
+            _root->_coord_field.childlist.head->_coord_field.prev   = _child;                       \
         }                                                                                           \
                                                                                                     \
-        root->childlist.head    = child;                                                            \
-        root->prev              = nullptr;                                                          \
-        root->next              = nullptr;                                                          \
+        _child->_coord_field.prev           = _root;                                                \
+        _child->_coord_field.next           = _root->_coord_field.childlist.head;                   \
+        _root->_coord_field.childlist.head  = _child;                                               \
+        _root->_coord_field.prev            = nullptr;                                              \
+        _root->_coord_field.next            = nullptr;                                              \
                                                                                                     \
         return _root;                                                                               \
     }
@@ -121,7 +86,7 @@
                                                                                                     \
     _attr _type*                                                                                    \
     _prefix##_pop(                                                                                  \
-        struct _prefix##_heap *heap                                                                 \
+        heap(_prefix)  *heap                                                                 \
     )                                                                                               \
     {                                                                                               \
         _type  *root;                                                                               \
@@ -138,7 +103,7 @@
         if (!curr)                                                                                  \
         {                                                                                           \
             heap->root          = nullptr;                                                          \
-            root->_coord_field  = (heap_coord(_type)){0};                                           \
+            root->_coord_field  = (heap_coord(_prefix)){0};                                           \
             return root;                                                                            \
         }                                                                                           \
         tail    = nullptr;                                                                          \
@@ -186,7 +151,7 @@
         }                                                                                           \
                                                                                                     \
         heap->root          = tail;                                                                 \
-        root->_coord_field  = (heap_coord(_type)){0};                                               \
+        root->_coord_field  = (heap_coord(_prefix)){0};                                               \
                                                                                                     \
         return root;                                                                                \
     }
@@ -208,8 +173,8 @@
                                                                                                     \
     _attr void                                                                                      \
     _prefix##_insert(                                                                               \
-        struct _prefix##_heap  *heap,                                                               \
-        _type                  *node                                                                \
+        heap(_prefix)  *heap,                                                               \
+        _type          *node                                                                \
     )                                                                                               \
     {                                                                                               \
         if (!node)                                                                                  \
@@ -217,7 +182,7 @@
             return;                                                                                 \
         }                                                                                           \
                                                                                                     \
-        node->_coord_field  = (heap_coord(_type)){0};                                               \
+        node->_coord_field  = (heap_coord(_prefix)){0};                                               \
         heap->root          = _prefix##_merge(heap->root, node);                                    \
     }
 
@@ -238,8 +203,8 @@
                                                                                                     \
     _attr void                                                                                      \
     _prefix##_remove(                                                                               \
-        struct _prefix##_heap  *heap,                                                               \
-        _type                  *node                                                                \
+        heap(_prefix)  *heap,                                                               \
+        _type          *node                                                                \
     )                                                                                               \
     {                                                                                               \
         if (!node)                                                                                  \
@@ -259,7 +224,7 @@
         }                                                                                           \
         else                                                                                        \
         {                                                                                           \
-            node->_coord_field.prev->_coord_field.next              = node->_coord_field.next;      \
+            node->_coord_field.prev->_coord_field.next  = node->_coord_field.next;      \
         }                                                                                           \
                                                                                                     \
         if (node->_coord_field.next)                                                                \
@@ -274,12 +239,40 @@
                                                                                                     \
         heap->root  = _prefix##_merge(heap->root, temp_heap.root);                                  \
                                                                                                     \
-        node->_coord_field  = (heap_coord(_type)){0};                                               \
+        node->_coord_field  = (heap_coord(_prefix)){0};                                               \
     }
 
 
 /**
- * @brief   generates the complete pairing heap structure and operational functions
+ * @brief   defines pairing-heap and pairing-heap coord structures
+ * 
+ * @param   _prefix prefix used for the heap and coord structs
+ * @param   _type   the data type of the heap node
+ *
+ * @warning must be invoked before uses of `gen_heap_func`, `heap_coord` or `heap
+ */
+#define gen_heap_struct(        \
+        _prefix,                \
+        _type                   \
+    )                           \
+                                \
+    struct _prefix##_heap      \
+    {                           \
+        _type  *root;           \
+    };                          \
+                                \
+    struct _prefix##_heap_coord \
+    {                           \
+        _type  *next;           \
+        _type  *prev;           \
+        struct                  \
+        {                       \
+            _type  *head;       \
+        } childlist;            \
+    };      
+
+/**
+ * @brief   generates pairing-heap functionalities
  * 
  * @param   _attr         function attributes applied to all generated functions
  * @param   _prefix       prefix used for the heap struct and function names
@@ -294,11 +287,6 @@
         _coord_field,                                                                               \
         _cmp_func                                                                                   \
     )                                                                                               \
-                                                                                                    \
-    struct _prefix##_heap                                                                           \
-    {                                                                                               \
-        _type  *root;                                                                               \
-    };                                                                                              \
                                                                                                     \
     _GEN_HEAP_MERGE(                                                                                \
         _attr,                                                                                      \
@@ -328,6 +316,13 @@
         _type,                                                                                      \
         _coord_field                                                                                \
     )
+
+#define heap(_prefix)           \
+    struct _prefix##_heap 
+
+
+#define heap_coord(_prefix)     \
+    struct _prefix##_heap_coord  
     
 
 #endif  //GENHEAP_H

@@ -50,7 +50,7 @@ typedef struct tsalloc_err_ctx  tsalloc_errctx_t;
 
 
 static inline void 
-macro_set_tsalloc_error(
+_set_tsalloc_error(
     tsalloc_errctx_t   *ctx,
     const char         *orig_filename,
     const char         *message,
@@ -79,7 +79,7 @@ macro_set_tsalloc_error(
     tsalloc_error_code                  \
 ) do                                    \
 {                                       \
-    macro_set_tsalloc_error             \
+    _set_tsalloc_error                  \
     (                                   \
         (error_ctx_ptr),                \
         __FILE__,                       \
@@ -145,7 +145,7 @@ macro_set_tsalloc_error(
     #include    <stdio.h>
 
     static inline void 
-    macro_append_tsalloc_error_trace(
+    _append_tsalloc_error_trace(
         tsalloc_errctx_t   *ctx,
         const char         *orig_filename,
         const char         *orig_function
@@ -185,7 +185,7 @@ macro_set_tsalloc_error(
         error_ctx_ptr                       \
     ) do                                    \
     {                                       \
-        macro_append_tsalloc_error_trace    \
+        _append_tsalloc_error_trace         \
         (                                   \
             (error_ctx_ptr),                \
             __FILE__,                       \
