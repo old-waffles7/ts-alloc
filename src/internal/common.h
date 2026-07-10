@@ -11,6 +11,16 @@
 #define COMMON_H
 
 
+#define     _POSIX_C_SOURCE 200112L
+#if defined(__linux__)
+    #define     _GNU_SOURCE
+#elif defined(__APPLE__)
+    #define     _DARWIN_C_SOURCE
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+    #define     _BSD_SOURCE
+#endif
+
+
 #include    <assert.h>
 
 //  remove

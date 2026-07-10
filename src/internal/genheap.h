@@ -25,17 +25,19 @@
         } childlist;            \
     }
 
+
 /**
  * @brief   generates a heap wrapper structure containing the root node
  * 
  * @param   _type   the data type of the heap node
  */
-#define heap(type)              \
+#define heap(_type)             \
     struct                      \
     {                           \
         _type  *root;           \  
     }
-    
+
+
 /**
  * @brief   generates the merge function to combine two pairing heaps
  * 
@@ -327,5 +329,5 @@
         _coord_field                                                                                \
     )
     
-    
+
 #endif  //GENHEAP_H

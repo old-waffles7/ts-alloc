@@ -24,7 +24,7 @@
  */
 enum TSALLOC_ERROR    : uint8_t
 {
-    TSALLOC_SUCCESS,            ///< operation completed successfully
+    TSALLOC_SUCCESS = 0,        ///< operation completed successfully
     TSALLOC_OS_ERR,             ///< os error, sets `os_error_code`
     TSALLOC_AUXIL_MAP_ERR,      ///< auxilliary allocator could not allocate memory
     TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
