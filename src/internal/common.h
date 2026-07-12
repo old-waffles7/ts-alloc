@@ -17,9 +17,13 @@
         #define     _GNU_SOURCE
     #endif  //_GNU_SOURCE
 #elif defined(__APPLE__)
-    #define     _DARWIN_C_SOURCE
+    #ifndef _DARWIN_C_SOURCE
+        #define     _DARWIN_C_SOURCE
+    #endif  //_DARWIN_C_SOURCE
 #elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-    #define     _BSD_SOURCE
+    #ifndef _BSD_SOURCE
+        #define     _BSD_SOURCE
+    #endif  //_BSD_SOURCE
 #endif  //OS
 
 

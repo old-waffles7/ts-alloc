@@ -29,8 +29,8 @@
  */
 enum TSALLOC_ADVISE_FLAG    : uint8_t
 {
-    TSALLOC_MAYBE_NEED, ///< flags pages for potential reclamation by mapper under memory pressure without immediately destroying the data if memory is accessed beforehand
-    TSALLOC_DONT_NEED,  ///< flags pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
+    TSALLOC_MAYBE_NEED, ///< flags unused (unallocated) pages for potential reclamation by mapper under memory pressure without immediately destroying the data if memory is accessed beforehand
+    TSALLOC_DONT_NEED,  ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
     TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
     TSALLOC_DO_FORK     ///< flags that memory must be duplicated on `fork` invocations
 };
