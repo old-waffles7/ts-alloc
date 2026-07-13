@@ -97,7 +97,7 @@ _set_tsalloc_error(
     os_error_code                       \
 ) do                                    \
 {                                       \
-    macro_set_tsalloc_error             \
+    _set_tsalloc_error                  \
     (                                   \
         (error_ctx_ptr),                \
         __FILE__,                       \
@@ -112,7 +112,7 @@ _set_tsalloc_error(
     _1,                                 \
     _2,                                 \
     _3,                                 \
-    _4,                                 \   
+    _4,                                 \
     FUNC,                               \
     ...                                 \
 ) FUNC
