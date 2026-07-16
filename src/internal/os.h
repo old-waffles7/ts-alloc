@@ -129,7 +129,7 @@ sys_unmap(
 ){
     if (!ptr)
     {
-        return;
+        return 0;
     }
     return munmap(ptr, nbytes);
 }
