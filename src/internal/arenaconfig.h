@@ -197,38 +197,50 @@ def_auxil_madvise(
     tsalloc_advice_t    flag
 ){
     uintptr_t   ret;
-
-    switch (flag)
+    
+    if (flag & TSALLOC_MAYBE_NEED)
     {
-        case TSALLOC_MAYBE_NEED:
-            ret = posix_madvise(addr, nbytes, POSIX_MADV_DONTNEED);
-            if (ret)
-            {
-                errno   = ret;
-            }
+        ret = posix_madvise(addr, nbytes, POSIX_MADV_DONTNEED);
+        if (ret)
+        {
+            errno   = ret;
             return ret;
-        
-        case TSALLOC_DONT_NEED:
-            ret = ((uintptr_t)mmap
-            (
-                addr, 
-                nbytes, 
-                (PROT_READ | PROT_WRITE), 
-                (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED), 
-                -1, 
-                0
-            ));
-            return (((void*)ret) == MAP_FAILED)? -1 : 0;
-        
-        case TSALLOC_DONT_FORK:
-            return MEM_DONTFORK(addr, nbytes);
-        
-        case TSALLOC_DO_FORK:
-            return MEM_DOFORK(addr,nbytes);
-        
-        default:
-            return -1;
+        }
     }
+    if (flag & TSALLOC_DONT_NEED)
+    {
+        ret = ((uintptr_t)mmap
+        (
+            addr, 
+            nbytes, 
+            (PROT_READ | PROT_WRITE), 
+            (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED), 
+            -1, 
+            0
+        ));
+        if (((void*)ret) == MAP_FAILED)
+        {
+            return -1;
+        }
+    }
+    if (flag & TSALLOC_DONT_FORK)
+    {
+        ret = MEM_DONTFORK(addr, nbytes);
+        if (ret)
+        {
+            return -1;
+        }
+    }
+    if (flag & TSALLOC_DO_FORK)
+    {
+        ret = MEM_DOFORK(addr, nbytes);
+        if (ret)
+        {
+            return -1;
+        }
+    }
+
+    return 0;
 }
 
 
