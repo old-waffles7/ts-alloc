@@ -75,12 +75,7 @@ chunk_destroy(
 }
 
 
-struct slab
-{
-    struct slab    *prev;
-};
-
-typedef struct slab     slab_t;
+typedef struct iobjpool_block   slab_t;
 
 
 tsalloc_err_t
@@ -214,18 +209,4 @@ objpool_alloc(
     *dest   = mem;
 
     return TSALLOC_SUCCESS;
-}
-
-inline void
-objpool_free(
-    objpool_t  *objpool,
-    void       *ptr
-){
-    if (!ptr)
-    {
-        return;
-    }
-
-    ((slab_t*)ptr)->prev    = ((slab_t*)objpool->slab_stack);
-    objpool->slab_stack     = ptr;
 }

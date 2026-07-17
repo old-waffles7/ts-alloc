@@ -11,7 +11,7 @@
 
 typedef struct span span_t;
 
-//  forward declaration suffice for structure definitions
+//  forward declaration suffices for structure definitions
 gen_sll_struct(registry, span_t);
 typedef sll(registry)       registry_t;
 typedef sll_coord(registry) registry_coord_t;

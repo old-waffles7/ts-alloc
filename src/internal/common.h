@@ -60,4 +60,9 @@ typedef double  float64_t;
 #endif
 
 
+#ifndef	_TSALLOC_CONFIG_H
+    #include    "../config/tsalloc_config.h"
+#endif  //_TSALLOC_CONFIG_H
+
+
 #endif  //COMMON_H

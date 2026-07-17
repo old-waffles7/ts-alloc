@@ -26,8 +26,13 @@ struct iobjpool
     size_t  nbytes_slab;    ///< size of an individual object slab
     size_t  nbytes_chunk;   ///< total size of a newly allocated chunk
 };
-
 typedef struct iobjpool objpool_t;
+
+
+struct iobjpool_block
+{
+    struct iobjpool_block   *prev;
+};
 
 
 /*
@@ -86,7 +91,15 @@ inline void
 objpool_free(
     objpool_t  *objpool,
     void       *ptr
-);
+){
+    if (!ptr)
+    {
+        return;
+    }
+
+    ((struct iobjpool_block*)ptr)->prev = ((struct iobjpool_block*)objpool->slab_stack);
+    objpool->slab_stack     = ptr;
+}
 
 
 #endif  //OBJPOOL_H

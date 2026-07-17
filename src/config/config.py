@@ -1,6 +1,5 @@
 #!/bin/python3
 
-
 """
     config.py.
 
@@ -25,21 +24,22 @@ class configuration:
         page_size,
         min_align,
         epoch,
-        nbytes_base_slab,
         nbytes_slab_alloc_max,
         nbytes_alloc_max,
         nbytes_new_span
     ):
-        max_blocks                  = nbytes_base_slab // min_align
+        if min_align > page_size:
+            raise ValueError(f"min-align ({min_align}) must be <= page-size ({page_size})")
+
+        max_blocks                  = page_size // min_align
 
         self.page_size              = page_size
         self.min_align              = min_align
         self.epoch                  = epoch
-        self.nbytes_base_slab       = nbytes_base_slab
         self.nbytes_slab_alloc_max  = nbytes_slab_alloc_max
         self.nbytes_alloc_max       = nbytes_alloc_max
         self.nbytes_new_span        = nbytes_new_span
-        self.max_bitmap_size        = math.ceil(max_blocks / 64) * 8
+        self.nbytes_bitmap          = math.ceil(max_blocks / 64) * 8
 
         self.min_align_shift        = int(math.log2(self.min_align))
         self.epoch_shift            = int(math.log2(self.epoch))
@@ -64,16 +64,14 @@ class configuration:
         self, 
         sizes   : list
     ) -> list:
-        infos           = []
-        base_nblocks    = self.nbytes_base_slab // self.min_align
+        infos = []
         
-        for i, block_size in enumerate(sizes):
+        for block_size in sizes:
             if block_size > self.nbytes_slab_alloc_max:
                 break
                 
-            group       = i // self.epoch
-            nblocks     = max(2, base_nblocks >> group)
-            slab_size   = nblocks * block_size
+            slab_size   = (block_size * self.page_size) // math.gcd(block_size, self.page_size)
+            nblocks     = slab_size // block_size
             
             infos.append((block_size, slab_size, nblocks))
             
@@ -91,7 +89,7 @@ class configuration:
                 break
             
             nblocks = slab_infos[i][2]
-            limit   = min(200, nblocks * 2)
+            limit   = min(128, nblocks // 2)
             
             limits.append(limit)
             
@@ -106,7 +104,6 @@ DEFAULT_CONFIGS = {
         page_size               = (1024 * 4),
         min_align               = 16,
         epoch                   = 4 ,
-        nbytes_base_slab        = (1024 * 8),
         nbytes_slab_alloc_max   = (1024 * 16),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
@@ -115,7 +112,6 @@ DEFAULT_CONFIGS = {
         page_size               = (1024 * 16),
         min_align               = 16,
         epoch                   = 4 ,
-        nbytes_base_slab        = (1024 * 8),
         nbytes_slab_alloc_max   = (1024 * 16),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
@@ -124,7 +120,6 @@ DEFAULT_CONFIGS = {
         page_size               = (1024 * 32),
         min_align               = 16,
         epoch                   = 4 ,
-        nbytes_base_slab        = (1024 * 8),
         nbytes_slab_alloc_max   = (1024 * 16),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
@@ -133,7 +128,6 @@ DEFAULT_CONFIGS = {
         page_size               = (1024 * 64),
         min_align               = 16,
         epoch                   = 4 ,
-        nbytes_base_slab        = (1024 * 8),
         nbytes_slab_alloc_max   = (1024 * 16),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
@@ -142,7 +136,6 @@ DEFAULT_CONFIGS = {
         page_size               = (1024 * 1024 * 2),
         min_align               = 256,
         epoch                   = 4,
-        nbytes_base_slab        = (1024 * 64),
         nbytes_slab_alloc_max   = (1024 * 512),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 32)
@@ -179,8 +172,8 @@ def type_bounded_int(
 def write_global_file_header(f) -> None:
     f.write("\n")
     f.write("#pragma\tonce\n")
-    f.write("#ifndef\tTSALLOC_CONFIG_H\n")
-    f.write("#define\tTSALLOC_CONFIG_H\n\n")
+    f.write("#ifndef\t_TSALLOC_CONFIG_H\n")
+    f.write("#define\t_TSALLOC_CONFIG_H\n\n")
     f.write("\n")
     f.write("\n")
     f.write("#include\t\"../internal/common.h\"\n")
@@ -201,13 +194,14 @@ def write_global_file_header(f) -> None:
     f.write("\tuint64_t\tpage_size;\n")
     f.write("\tuint64_t\tmin_align;\n")
     f.write("\tuint32_t\tepoch;\n")
-    f.write("\tuint64_t\tbase_slab;\n")
     f.write("\tuint64_t\tslab_alloc_max;\n")
     f.write("\tuint64_t\talloc_max;\n")
     f.write("\tuint64_t\tnew_span_size;\n")
     f.write("\tuint32_t\tmin_align_shift;\n")
     f.write("\tuint32_t\tepoch_shift;\n")
-    f.write("\tuint32_t\tmax_bitmap_size;\n")
+    f.write("\tuint32_t\tnbytes_bitmap;\n")
+    f.write("\tuint32_t\tnszclasses;\n")
+    f.write("\tuint32_t\tnszclasses_slab;\n")
     f.write("\n")
     f.write("\tconst uint64_t*\t\t\t\tsz_class_max_nbytes;\n")
     f.write("\tconst uint16_t*\t\t\t\tsz_class_of_nbytes;\n")
@@ -254,13 +248,14 @@ def generate_config_c_block(
         f"\t.page_size              = {cfg.page_size},\n"
         f"\t.min_align              = {cfg.min_align},\n"
         f"\t.epoch                  = {cfg.epoch},\n"
-        f"\t.base_slab              = {cfg.nbytes_base_slab},\n"
         f"\t.slab_alloc_max         = {cfg.nbytes_slab_alloc_max},\n"
         f"\t.alloc_max              = {cfg.nbytes_alloc_max}ULL,\n"
         f"\t.new_span_size          = {cfg.nbytes_new_span},\n"
         f"\t.min_align_shift        = {cfg.min_align_shift},\n"
         f"\t.epoch_shift            = {cfg.epoch_shift},\n"
-        f"\t.max_bitmap_size        = {cfg.max_bitmap_size},\n"
+        f"\t.nbytes_bitmap          = {cfg.nbytes_bitmap},\n"
+        f"\t.nszclasses             = {class_count},\n"
+        f"\t.nszclasses_slab        = {slab_count},\n"
         f"\t.sz_class_max_nbytes    = sz_class_max_nbytes_{cfg.page_size},\n"
         f"\t.sz_class_of_nbytes     = sz_class_of_nbytes_{cfg.page_size},\n"
         f"\t.slab_infos             = slab_infos_{cfg.page_size},\n"
@@ -300,7 +295,7 @@ def remove_config_block(
 
 def main():
     parser = argparse.ArgumentParser(
-        description     = "Generate tsalloc_config.h.",
+        description     = "generate _tsalloc_config.h.",
         formatter_class = lambda prog: argparse.HelpFormatter(prog, max_help_position = 50)
     )
      
@@ -339,10 +334,6 @@ def main():
         type    = type_bounded_int((sys.maxsize - 1), 1),
     )
     parser.add_argument(
-        "-sb", "--base-slab",
-        type=type_bounded_pow2((sys.maxsize - 1), 1),
-    )
-    parser.add_argument(
         "-sm", "--slab-alloc-max",
         type    = type_bounded_pow2((sys.maxsize - 1), 1),
     )
@@ -355,12 +346,12 @@ def main():
         type    = type_bounded_pow2((sys.maxsize - 1), 1),
     )
     args        = parser.parse_args()
-    file_path   = "src/config/tsalloc_config.h"
+    file_path   = "src/config/_tsalloc_config.h"
 
     if args.clear:
         with open(file_path, "w") as f:
             write_global_file_header(f)
-            f.write("#endif\t//TSALLOC_CONFIG_H\n")
+            f.write("#endif\t//_TSALLOC_CONFIG_H\n")
         sys.exit(0)
 
     if args.remove:
@@ -377,12 +368,12 @@ def main():
             for default_cfg in DEFAULT_CONFIGS.values():
                 f.write(generate_config_c_block(default_cfg))
             if mode == "w" or not file_exists:
-                f.write("#endif\t//TSALLOC_CONFIG_H\n")
+                f.write("#endif\t//_TSALLOC_CONFIG_H\n")
         sys.exit(0)
 
     config_args = [
         args.page_size, args.min_align, args.epoch, 
-        args.base_slab, args.slab_alloc_max, args.alloc_max, args.new_span_size
+        args.slab_alloc_max, args.alloc_max, args.new_span_size
     ]
 
     if any(config_args):
@@ -390,17 +381,21 @@ def main():
             print("Error: Incomplete configuration. Provide all arguments.")
             sys.exit(1)
             
-        cfg = configuration(
-            args.page_size, args.min_align, args.epoch,
-            args.base_slab, args.slab_alloc_max, args.alloc_max, args.new_span_size
-        )
+        try:
+            cfg = configuration(
+                args.page_size, args.min_align, args.epoch,
+                args.slab_alloc_max, args.alloc_max, args.new_span_size
+            )
+        except ValueError as e:
+            print(f"Configuration Error: {e}")
+            sys.exit(1)
         
         with open(file_path, mode) as f:
             if mode == "w" or not file_exists:
                 write_global_file_header(f)
             f.write(generate_config_c_block(cfg))
             if mode == "w" or not file_exists:
-                f.write("#endif\t//TSALLOC_CONFIG_H\n")
+                f.write("#endif\t//_TSALLOC_CONFIG_H\n")
     else:
         if not (args.clear or args.remove or args.default):
             parser.print_help()

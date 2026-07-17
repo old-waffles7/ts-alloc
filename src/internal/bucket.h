@@ -11,7 +11,7 @@
 
 typedef struct span span_t;
 
-//  forward declaration suffice for structure definitions
+//  forward declaration suffices for structure definitions
 gen_heap_struct(bucket, span_t)
 typedef heap(bucket)        bucket_t;
 typedef heap_coord(bucket)  bucket_coord_t;
