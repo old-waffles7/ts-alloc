@@ -242,4 +242,3 @@ span_coalesce(
 
     return TSALLOC_SUCCESS;
 }
-

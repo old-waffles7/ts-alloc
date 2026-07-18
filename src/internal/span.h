@@ -16,6 +16,8 @@
 #include    "registry.h"
 #include    "arenaconfig.h"
 
+#include    <string.h>
+
 
 #define     SPAN_NSTATES    3
 
@@ -44,11 +46,11 @@ typedef struct slab slab_t;
 /*
  * @brief   initializes a new memory slab
  *
- * @param   cfg       pointer to the allocator configuration
- * @param   slabinfo  pointer to the slab information/layout configuration
- * @param   error_ctx pointer to the error context struct
- * @param   slabpool  pointer to the object pool used for slab metadata allocation
- * @param   span      pointer to the span being formatted as a slab
+ * @param   cfg         pointer to the allocator configuration
+ * @param   slabinfo    pointer to the slab information/layout configuration
+ * @param   error_ctx   pointer to the error context struct
+ * @param   slabpool    pointer to the object pool used for slab metadata allocation
+ * @param   span        pointer to the span being formatted as a slab
  *
  * @return  status code representing success or failure
  */
@@ -64,8 +66,8 @@ slab_init(
 /*
  * @brief   deinitializes a memory slab and returns its metadata to the pool
  *
- * @param   slabpool  pointer to the object pool used for slab metadata
- * @param   span      pointer to the span formatted as a slab
+ * @param   slabpool    pointer to the object pool used for slab metadata
+ * @param   span        pointer to the span formatted as a slab
  */
 inline void
 slab_deinit(
@@ -105,12 +107,12 @@ typedef struct span span_t;
 /*
  * @brief   creates and maps a new memory span
  *
- * @param   error_ctx pointer to the error context struct
- * @param   arena_cfg pointer to the arena configuration struct
- * @param   spanpool  pointer to the object pool for span metadata
- * @param   dest      double pointer to output the newly created span
- * @param   szclass   size class of the span being created
- * @param   _align    memory alignment requirement
+ * @param   error_ctx   pointer to the error context struct
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   spanpool    pointer to the object pool for span metadata
+ * @param   dest        double pointer to output the newly created span
+ * @param   szclass     size class of the span being created
+ * @param   _align      memory alignment requirement
  *
  * @return  status code representing success or failure
  */
@@ -127,10 +129,10 @@ span_create(
 /*
  * @brief   destroys a memory span and unmaps its backing memory
  *
- * @param   error_ctx    pointer to the error context struct
- * @param   arena_config pointer to the arena configuration struct
- * @param   spanpool     pointer to the object pool for span metadata
- * @param   span         pointer to the span to destroy
+ * @param   error_ctx       pointer to the error context struct
+ * @param   arena_config    pointer to the arena configuration struct
+ * @param   spanpool        pointer to the object pool for span metadata
+ * @param   span            pointer to the span to destroy
  *
  * @return  status code representing success or failure
  */
@@ -145,12 +147,12 @@ span_destroy(
 /*
  * @brief   splits a span into a smaller span and a remainder
  *
- * @param   error_ctx pointer to the error context struct
- * @param   arena_cfg pointer to the arena configuration struct
- * @param   spanpool  pointer to the object pool for span metadata
- * @param   origin    double pointer to the original span to split (updated to remainder)
- * @param   dest      double pointer to output the newly split span
- * @param   szclass   target size class for the new split span
+ * @param   error_ctx   pointer to the error context struct
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   spanpool    pointer to the object pool for span metadata
+ * @param   origin      double pointer to the original span to split (updated to remainder)
+ * @param   dest        double pointer to output the newly split span
+ * @param   szclass     target size class for the new split span
  *
  * @return  status code representing success or failure
  */
@@ -167,12 +169,12 @@ span_split(
 /*
  * @brief   coalesces two physically adjacent free spans into a single span
  *
- * @param   error_ctx pointer to the error context struct
- * @param   arena_cfg pointer to the arena configuration struct
- * @param   spanpool  pointer to the object pool for span metadata
- * @param   lspan     pointer to the left span (lower memory address)
- * @param   rspan     pointer to the right span (higher memory address)
- * @param   dest      double pointer to output the coalesced span
+ * @param   error_ctx   pointer to the error context struct
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   spanpool    pointer to the object pool for span metadata
+ * @param   lspan       pointer to the left span (lower memory address)
+ * @param   rspan       pointer to the right span (higher memory address)
+ * @param   dest        double pointer to output the coalesced span
  *
  * @return  status code representing success or failure
  */
@@ -185,5 +187,74 @@ span_coalesce(
     span_t             *rspan,
     span_t            **dest
 );
+
+/*
+ * @brief   mutates the state of a span
+ *
+ * @param   error_ctx   pointer to the error context struct
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   span        pointer to the span to be mutated
+ * @param   state       flag corresponding to state to me implemented
+ *
+ * @return  status code representing success or failure
+ */
+static inline tsalloc_err_t
+span_set_state(
+    tsalloc_errctx_t       *error_ctx,
+    arena_conf_t           *arena_cfg,
+    span_t                 *span,
+    tsalloc_span_state_t    state
+){
+    size_t  nbytes;
+
+    nbytes  = tsalloc_szclass_span_size(
+        (arena_cfg->tsalloc_cfg), 
+        ((tsalloc_szclass_t)(span->flags.szclass))
+    );
+    switch (state) 
+    {
+        case TSALLOC_SPAN_CLEAN:
+            memset((span->addr), 0, nbytes);
+            span->flags.state   = TSALLOC_SPAN_CLEAN;
+            break;
+
+        case TSALLOC_SPAN_DIRTY:
+            span->flags.state   = TSALLOC_SPAN_DIRTY;
+            break;
+        
+        case TSALLOC_SPAN_RETAINED:
+        {
+            int ret;
+            ret = arena_cfg->auxil_madvise(
+                (arena_cfg->extra),
+                ((void*)(span->addr)),
+                nbytes,
+                TSALLOC_ADVISE_RETAIN
+            );
+            if (!ret)
+            {
+                set_tsalloc_error(
+                    error_ctx,
+                    "span_set_state::span.h auxilliary madvise error",
+                    TSALLOC_AXUIL_MADVISE_ERR
+                );
+                return TSALLOC_AXUIL_MADVISE_ERR;
+            }
+            span->flags.state   = TSALLOC_SPAN_RETAINED;
+            break;
+        }
+
+        default:
+            set_tsalloc_error(
+                    error_ctx,
+                    "span_set_state::span.h invalid flag argued",
+                    TSALLOC_INVALID_ARGS
+                );
+                return TSALLOC_INVALID_ARGS;
+    }
+
+    return TSALLOC_SUCCESS;
+}
+
 
 #endif  //SPAN_H

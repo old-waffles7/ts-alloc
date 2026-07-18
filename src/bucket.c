@@ -25,7 +25,7 @@ span_cmp(
 
 gen_heap_func
 (
-    inline, 
+    , 
     bucket, 
     span_t, 
     coord.bucket, 

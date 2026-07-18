@@ -16,19 +16,18 @@ gen_heap_struct(bucket, span_t)
 typedef heap(bucket)        bucket_t;
 typedef heap_coord(bucket)  bucket_coord_t;
 
-
-inline span_t*
+span_t*
 bucket_pop(
     bucket_t   *bucket
 );
 
-inline void
+void
 bucket_insert(
     bucket_t   *bucket,
     span_t     *span
 );
 
-inline void
+void
 bucket_remove(
     bucket_t   *bucket,
     span_t     *span

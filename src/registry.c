@@ -8,7 +8,7 @@
 
 gen_sll_func
 (
-    inline, 
+    , 
     registry,
     span_t, 
     coord.registry
