@@ -1,1 +1,2 @@
 #define OPT_TRACE_ERRORS
+#define OPT_TRACK_STATS

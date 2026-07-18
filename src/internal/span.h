@@ -17,6 +17,18 @@
 #include    "arenaconfig.h"
 
 
+#define     SPAN_NSTATES    3
+
+
+enum TSALLOC_SPAN_STATE : uint8_t
+{
+    TSALLOC_SPAN_CLEAN  = 0,
+    TSALLOC_SPAN_DIRTY,
+    TSALLOC_SPAN_RETAINED
+};
+typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
+
+
 /*
  * @struct  slab
  * @brief   metadata for a memory slab

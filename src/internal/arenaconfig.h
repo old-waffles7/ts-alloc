@@ -29,10 +29,9 @@
  */
 enum TSALLOC_ADVISE_FLAG    : uint8_t
 {
-    TSALLOC_MAYBE_NEED, ///< flags unused (unallocated) pages for potential reclamation by mapper under memory pressure without immediately destroying the data if memory is accessed beforehand
-    TSALLOC_DONT_NEED,  ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
     TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
-    TSALLOC_DO_FORK     ///< flags that memory must be duplicated on `fork` invocations
+    TSALLOC_DO_FORK,    ///< flags that memory must be duplicated on `fork` invocations
+    TSALLOC_RETAIN      ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
 };
 typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
 
@@ -177,8 +176,8 @@ def_auxil_unmap(
     #define     MEM_DONTFORK(addr, nbytes)  minherit((addr), (nbytes), INHERIT_NONE)
     #define     MEM_DOFORK(addr, nbytes)    minherit((addr), (nbytes), INHERIT_COPY)
 #else
-    #define     MEM_DONTFORK(addr, nbytes)  0
-    #define     MEM_DOFORK(addr, nbytes)    0
+    #define     MEM_DONTFORK(addr, nbytes)  ((void)0)
+    #define     MEM_DOFORK(addr, nbytes)    ((void)0)
 #endif
 
 /**
@@ -200,16 +199,7 @@ def_auxil_madvise(
 ){
     uintptr_t   ret;
     
-    if (flag & TSALLOC_MAYBE_NEED)
-    {
-        ret = posix_madvise(addr, nbytes, POSIX_MADV_DONTNEED);
-        if (ret)
-        {
-            errno   = ret;
-            return ret;
-        }
-    }
-    if (flag & TSALLOC_DONT_NEED)
+    if (flag & TSALLOC_RETAIN)
     {
         ret = ((uintptr_t)mmap
         (
@@ -223,7 +213,7 @@ def_auxil_madvise(
         if (((void*)ret) == MAP_FAILED)
         {
             return -1;
-        }
+        };
     }
     if (flag & TSALLOC_DONT_FORK)
     {

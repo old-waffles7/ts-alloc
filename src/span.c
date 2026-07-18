@@ -7,10 +7,6 @@
 #include    "internal/arenaconfig.h"
 
 
-/*
-    make functions as minimal and atomic as possible. this does not cut the slab,
-    it assumes the passed slab is the perfect size
-*/
 tsalloc_err_t
 slab_init(
     const tsalloc_config_t     *cfg,
