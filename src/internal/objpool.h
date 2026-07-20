@@ -60,7 +60,7 @@ objpool_init(
  * 
  * @param   objpool     pointer to the object pool to deinitialize
  */
-inline void 
+void 
 objpool_deinit(
     objpool_t  *objpool
 );

@@ -61,7 +61,7 @@ chunk_create(
     return TSALLOC_SUCCESS;
 }
 
-static inline void
+static void
 chunk_destroy(
     chunk_t    *chunk,
     size_t      nbytes
@@ -140,7 +140,7 @@ objpool_init(
     return TSALLOC_SUCCESS;
 }
 
-inline void 
+void 
 objpool_deinit(
     objpool_t  *objpool
 ){

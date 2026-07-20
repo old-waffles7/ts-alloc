@@ -149,11 +149,13 @@
     struct _prefix##_dll        \
     {                           \
         _type  *head;           \
+        _type  *tail;           \
     };                          \
                                 \
     struct _prefix##_dll_coord  \
     {                           \
         _type  *next;           \
+        _type  *prev;           \
     };
 
 #define dll(_prefix)            \

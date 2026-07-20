@@ -30,6 +30,16 @@ tsalloc_get_szclass(
     const tsalloc_config_t *cfg,
     size_t  nbytes
 ){
+    if (nbytes == 0)
+    {
+        return 0;
+    }
+
+    if (nbytes > (cfg->alloc_max))
+    {
+        return (tsalloc_szclass_t)(-1);
+    }
+
     //  slab
     if (nbytes <= (cfg->slab_alloc_max))
     {
@@ -37,7 +47,7 @@ tsalloc_get_szclass(
         return (cfg->sz_class_of_nbytes[(idx == 0)? 0 : (idx - 1)]);
     }
 
-    //span
+    // span
     size_t  req_nbytes;
     size_t  base_shift;
     size_t  epoch;

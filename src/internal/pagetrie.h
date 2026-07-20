@@ -9,7 +9,9 @@
 #define PAGETRIE_H
 
 
+#include    "mutex.h"
 #include    "objpool.h"
+#include    <stdatomic.h>
 
 
 /*
@@ -19,6 +21,7 @@
 struct pagetrie
 {
     void       *root;       ///< pointer to the level 1 root node
+    mutex_t     lock;       ///< mutex for locking trie on interior node creation
     objpool_t   nodepool;   ///< object pool for allocating interior and leaf nodes
 };
 
@@ -75,7 +78,7 @@ pagetrie_insert(
  * 
  * @return  pointer to the metadata key, or nullptr if not found
  */
-inline void* 
+void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
     void       *key
@@ -87,7 +90,7 @@ pagetrie_lookup(
  * @param   pagetrie    pointer to the pagetrie instance
  * @param   key         virtual memory address in page associated with key to be removed from trie
  */
-inline bool 
+bool 
 pagetrie_remove(
     pagetrie_t *pagetrie,
     void       *key

@@ -19,6 +19,38 @@
 
 
 /**
+ * @brief   retrieves the hardware memory page size from the os
+ * 
+ * utilizes `sysconf(_SC_PAGESIZE)` to determine the base virtual memory page size of the active 
+ * system. the result is cached internally via a local static variable, guaranteeing that all 
+ * subsequent calls execute instantly with zero system call overhead
+ * 
+ * @return  the hardware page size in bytes (e.g., 4096, 16384)
+ */
+static inline uint64_t
+sys_page_size(void)
+{
+    static uint64_t cached_page_size = 0;
+
+    if (cached_page_size == 0)
+    {
+        cached_page_size = sysconf(_SC_PAGESIZE);
+    }
+
+    return cached_page_size;
+}
+
+/*
+ * @brief   retrives system error-code implemented by os
+ *
+ * @return  exact os error-code
+*/
+static inline int
+sys_error_code(void){
+    return errno;
+}
+
+/**
  * @brief   allocates raw, page-aligned virtual memory directly from the os 
  * 
  * bypasses c standard library heap to request an anonymous, private memory mapping. the underlying 
@@ -63,15 +95,21 @@ sys_aligned_map(
     size_t  align,
     size_t  nbytes
 ){
-    if (!IS_POWER_OF_TWO(align))
+    if ((!IS_POWER_OF_TWO(align)) || align < sys_page_size())
     {
         return nullptr;
     }
 
+    // overflow
+    if (nbytes > SIZE_MAX - (align - sys_page_size()))
+    {
+        return nullptr;
+    }
+    
     uint8_t    *raw_mem;
     size_t      nbytes_req;
     
-    nbytes_req  = nbytes + align;
+    nbytes_req  = nbytes + align - sys_page_size();
     raw_mem     = (uint8_t*)mmap
     (
         nullptr, 
@@ -134,36 +172,5 @@ sys_unmap(
     return munmap(ptr, nbytes);
 }
 
-/**
- * @brief   retrieves the hardware memory page size from the os
- * 
- * utilizes `sysconf(_SC_PAGESIZE)` to determine the base virtual memory page size of the active 
- * system. the result is cached internally via a local static variable, guaranteeing that all 
- * subsequent calls execute instantly with zero system call overhead
- * 
- * @return  the hardware page size in bytes (e.g., 4096, 16384)
- */
-static inline uint64_t
-sys_page_size(void)
-{
-    static uint64_t cached_page_size = 0;
-
-    if (cached_page_size == 0)
-    {
-        cached_page_size = sysconf(_SC_PAGESIZE);
-    }
-
-    return cached_page_size;
-}
-
-/*
- * @brief   retrives system error-code implemented by os
- *
- * @return  exact os error-code
-*/
-static inline int
-sys_error_code(void){
-    return errno;
-}
 
 #endif  //OS_H

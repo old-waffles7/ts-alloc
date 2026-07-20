@@ -18,8 +18,8 @@
 
 union node
 {
-    union node *child[NCHILD_NODES];
-    void       *data[NCHILD_NODES];
+    _Atomic(union node*)    child[NCHILD_NODES];
+    _Atomic(void*)          data[NCHILD_NODES];
 };
 
 typedef union node  node_t;
@@ -32,6 +32,13 @@ pagetrie_init(
 ){
     tsalloc_err_t   ret;
 
+    ret = mutex_init(error_ctx, &(pagetrie->lock));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
     ret = objpool_init
     (
         error_ctx,
@@ -43,6 +50,7 @@ pagetrie_init(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(error_ctx);
+        mutex_deinit(error_ctx, &(pagetrie->lock));
         return ret;
     }
 
@@ -52,6 +60,8 @@ pagetrie_init(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(error_ctx);
+        objpool_deinit(&(pagetrie->nodepool));
+        mutex_deinit(error_ctx, &(pagetrie->lock));
         return ret;
     }
     memset(root, 0, sizeof(node_t));
@@ -87,41 +97,53 @@ pagetrie_insert(
     idx3        = page_addr & LEVEL_MASK;
     root        = ((node_t*)pagetrie->root);
     
-    if (!(root->child[idx1]))
-    {
-        node_t         *node;
-        tsalloc_err_t   ret;
+    mutex_lock(&pagetrie->lock);
 
-        ret     = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
+    node_t         *node;
+    node_t         *node1;
+    tsalloc_err_t   ret;
+
+    node1   = atomic_load_explicit(&root->child[idx1], memory_order_relaxed);
+    if (!node1)
+    {
+        ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
         if (ret != TSALLOC_SUCCESS)
         {
+            mutex_unlock(&pagetrie->lock);
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
         memset(node, 0, sizeof(node_t));
-        root->child[idx1]   = node;
+        
+        atomic_store_explicit(&root->child[idx1], node, memory_order_release);
+        node1   = node;          
     }
-    if (!(root->child[idx1]->child[idx2]))
-    {
-        node_t         *node;
-        tsalloc_err_t   ret;
+    
+    node_t *node2;
 
-        ret     = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
+    node2   = atomic_load_explicit(&node1->child[idx2], memory_order_relaxed); 
+    if (!node2)
+    {
+        ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
         if (ret != TSALLOC_SUCCESS)
         {
+            mutex_unlock(&pagetrie->lock); 
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
         memset(node, 0, sizeof(node_t));
-        root->child[idx1]->child[idx2]  = node;
+        
+        atomic_store_explicit(&node1->child[idx2], node, memory_order_release);
+        node2   = node;
     }
+    atomic_store_explicit(&node2->data[idx3], data, memory_order_release); 
 
-    root->child[idx1]->child[idx2]->data[idx3]  = data;
+    mutex_unlock(&pagetrie->lock);
 
     return TSALLOC_SUCCESS;
 }
 
-inline void* 
+void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
     void       *key
@@ -138,15 +160,24 @@ pagetrie_lookup(
     idx3        = page_addr & LEVEL_MASK;
     root        = ((node_t*)pagetrie->root);
     
-    if (!root->child[idx1] || !(root->child[idx1]->child[idx2]))
+    node_t *node1;
+    node1   = atomic_load_explicit(&root->child[idx1], memory_order_acquire); 
+    if (!node1)
     {
         return nullptr;
     }
 
-    return root->child[idx1]->child[idx2]->data[idx3];
+    node_t *node2;
+    node2   = atomic_load_explicit(&node1->child[idx2], memory_order_acquire);
+    if (!node2)
+    {
+        return nullptr;
+    }
+
+    return atomic_load_explicit(&node2->data[idx3], memory_order_acquire);
 }
 
-inline bool 
+bool 
 pagetrie_remove(
     pagetrie_t *pagetrie,
     void       *key
@@ -163,12 +194,21 @@ pagetrie_remove(
     idx3        = page_addr & LEVEL_MASK;
     root        = ((node_t*)pagetrie->root);
     
-    if (!root->child[idx1] || !(root->child[idx1]->child[idx2]))
+    node_t *node1;     
+    node1   = atomic_load_explicit(&root->child[idx1], memory_order_acquire);
+    if (!node1)
     {
         return false;
     }
 
-    root->child[idx1]->child[idx2]->data[idx3]  = nullptr;
+    node_t *node2;          
+    node2   = atomic_load_explicit(&node1->child[idx2], memory_order_acquire); 
+    if (!node2)
+    {
+        return false;
+    }
+
+    atomic_store_explicit(&node2->data[idx3], nullptr, memory_order_release);
 
     return true;
 }

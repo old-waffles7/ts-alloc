@@ -28,7 +28,7 @@ enum TSALLOC_ERROR    : uint8_t
     TSALLOC_OS_ERR,             ///< os error, sets `os_error_code`
     TSALLOC_AUXIL_MAP_ERR,      ///< auxilliary allocator could not allocate memory
     TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
-    TSALLOC_AXUIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
+    TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
     TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
 };
 

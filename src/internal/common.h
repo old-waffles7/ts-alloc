@@ -43,7 +43,7 @@
 #include    <stdbool.h>
 #include    <stddef.h>
 #include    <stdint.h>
-typedef int8_t  byte_t;
+typedef uint8_t byte_t;
 
 #include    <float.h>
 typedef float   float32_t;

@@ -37,9 +37,9 @@ typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
  */
 struct slab
 {
+    byte_t     *bitmap;         ///< pointer to the bitmap tracking block allocation
     uint16_t    nbytes_block;   ///< size of an individual block within the slab
     uint16_t    nblocks_free;   ///< number of currently free blocks in the slab
-    byte_t     *bitmap;         ///< pointer to the bitmap tracking block allocation
 };
 typedef struct slab slab_t;
 
@@ -69,7 +69,7 @@ slab_init(
  * @param   slabpool    pointer to the object pool used for slab metadata
  * @param   span        pointer to the span formatted as a slab
  */
-inline void
+void
 slab_deinit(
     objpool_t  *slabpool,
     span_t     *span
@@ -198,63 +198,13 @@ span_coalesce(
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+tsalloc_err_t
 span_set_state(
     tsalloc_errctx_t       *error_ctx,
     arena_conf_t           *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
-){
-    size_t  nbytes;
-
-    nbytes  = tsalloc_szclass_span_size(
-        (arena_cfg->tsalloc_cfg), 
-        ((tsalloc_szclass_t)(span->flags.szclass))
-    );
-    switch (state) 
-    {
-        case TSALLOC_SPAN_CLEAN:
-            memset((span->addr), 0, nbytes);
-            span->flags.state   = TSALLOC_SPAN_CLEAN;
-            break;
-
-        case TSALLOC_SPAN_DIRTY:
-            span->flags.state   = TSALLOC_SPAN_DIRTY;
-            break;
-        
-        case TSALLOC_SPAN_RETAINED:
-        {
-            int ret;
-            ret = arena_cfg->auxil_madvise(
-                (arena_cfg->extra),
-                ((void*)(span->addr)),
-                nbytes,
-                TSALLOC_ADVISE_RETAIN
-            );
-            if (!ret)
-            {
-                set_tsalloc_error(
-                    error_ctx,
-                    "span_set_state::span.h auxilliary madvise error",
-                    TSALLOC_AXUIL_MADVISE_ERR
-                );
-                return TSALLOC_AXUIL_MADVISE_ERR;
-            }
-            span->flags.state   = TSALLOC_SPAN_RETAINED;
-            break;
-        }
-
-        default:
-            set_tsalloc_error(
-                    error_ctx,
-                    "span_set_state::span.h invalid flag argued",
-                    TSALLOC_INVALID_ARGS
-                );
-                return TSALLOC_INVALID_ARGS;
-    }
-
-    return TSALLOC_SUCCESS;
-}
+);
 
 
 #endif  //SPAN_H

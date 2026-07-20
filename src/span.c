@@ -27,11 +27,11 @@ slab_init(
 
     byte_t *bitmap;
 
-    bitmap      = ((byte_t*)metadata) + (2 * sizeof(uint16_t));
+    bitmap      = ((byte_t*)metadata) + sizeof(slab_t);
     *metadata   = (slab_t){
+        .bitmap         = bitmap,
         .nbytes_block   = slabinfo->block_size,
-        .nblocks_free   = slabinfo->nblocks,
-        .bitmap         = bitmap
+        .nblocks_free   = slabinfo->nblocks
     };
 
     span->flags.is_slab = true;
@@ -40,7 +40,7 @@ slab_init(
     return TSALLOC_SUCCESS;
 }
 
-inline void
+void
 slab_deinit(
     objpool_t  *slabpool,
     span_t     *span
@@ -86,6 +86,7 @@ span_create(
             "span_create::span.c auxilliary mapper could not allocate memory",
             TSALLOC_AUXIL_MAP_ERR
         );
+        objpool_free(spanpool, ((void*)span));
         return TSALLOC_AUXIL_MAP_ERR;
     }
 
@@ -141,12 +142,9 @@ span_split(
     span_t            **dest,
     tsalloc_szclass_t   szclass
 ){
-    span_t *split;
     size_t  split_nbytes;
-    size_t  origin_nbytes;
 
     split_nbytes    = tsalloc_szclass_span_size((arena_cfg->tsalloc_cfg), szclass);
-    origin_nbytes   = ((*origin)->nbytes) - split_nbytes;
     if (((*origin)->nbytes) < split_nbytes)
     {
         set_tsalloc_error(
@@ -156,7 +154,11 @@ span_split(
         );
         return TSALLOC_INVALID_ARGS; 
     }
-    
+
+    span_t *split;
+    size_t  origin_nbytes;
+
+    origin_nbytes   = ((*origin)->nbytes) - split_nbytes;
     if (origin_nbytes == 0) 
     {
         split                       = *origin;
@@ -220,25 +222,78 @@ span_coalesce(
         return TSALLOC_INVALID_ARGS; 
     }
 
-    span_t             *span;
     size_t              nbytes;
     tsalloc_szclass_t   szclass; 
 
     nbytes  = (lspan->nbytes) + (rspan->nbytes);
     szclass = tsalloc_get_szclass((arena_cfg->tsalloc_cfg), nbytes);
 
-    span    = lspan;
-    *span   = (span_t){
-        .flags.age      = MIN((lspan->flags.age), (rspan->flags.age)),
-        .flags.szclass  = szclass,
-        .flags.arena    = lspan->flags.arena,
-        .flags.state    = MAX((lspan->flags.state), (rspan->flags.state)),
-        .addr           = lspan->addr,
-        .nbytes         = nbytes
-    };
+    lspan->flags.age        = MIN((lspan->flags.age), (rspan->flags.age));
+    lspan->flags.szclass    = szclass;
+    lspan->flags.state      = MAX((lspan->flags.state), (rspan->flags.state));
+    lspan->nbytes           = nbytes;
+    
     objpool_free(spanpool, ((void*)rspan));
 
-    *dest   = span;
+    *dest = lspan;
+
+    return TSALLOC_SUCCESS;
+}
+
+tsalloc_err_t
+span_set_state(
+    tsalloc_errctx_t       *error_ctx,
+    arena_conf_t           *arena_cfg,
+    span_t                 *span,
+    tsalloc_span_state_t    state
+){
+    size_t  nbytes;
+
+    nbytes  = tsalloc_szclass_span_size(
+        (arena_cfg->tsalloc_cfg), 
+        ((tsalloc_szclass_t)(span->flags.szclass))
+    );
+    switch (state) 
+    {
+        case TSALLOC_SPAN_CLEAN:
+            memset((span->addr), 0, nbytes);
+            span->flags.state   = TSALLOC_SPAN_CLEAN;
+            break;
+
+        case TSALLOC_SPAN_DIRTY:
+            span->flags.state   = TSALLOC_SPAN_DIRTY;
+            break;
+        
+        case TSALLOC_SPAN_RETAINED:
+        {
+            int ret;
+            ret = arena_cfg->auxil_madvise(
+                (arena_cfg->extra),
+                ((void*)(span->addr)),
+                nbytes,
+                TSALLOC_ADVISE_RETAIN
+            );
+            if (!ret)
+            {
+                set_tsalloc_error(
+                    error_ctx,
+                    "span_set_state::span.h auxilliary madvise error",
+                    TSALLOC_AUXIL_MADVISE_ERR
+                );
+                return TSALLOC_AUXIL_MADVISE_ERR;
+            }
+            span->flags.state   = TSALLOC_SPAN_RETAINED;
+            break;
+        }
+
+        default:
+            set_tsalloc_error(
+                    error_ctx,
+                    "span_set_state::span.h invalid flag argued",
+                    TSALLOC_INVALID_ARGS
+                );
+                return TSALLOC_INVALID_ARGS;
+    }
 
     return TSALLOC_SUCCESS;
 }

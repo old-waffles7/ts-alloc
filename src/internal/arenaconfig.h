@@ -17,6 +17,7 @@
 #include    "os.h"
 
 #include    <sys/mman.h>
+#include    <errno.h>
 
 
 //  expose this later (to both arena header malloc header)
@@ -173,14 +174,24 @@ def_auxil_unmap(
 }
 
 #if defined(__linux__)
-    #define     MEM_DONTFORK(addr, nbytes)  madvise((addr), (nbytes), MADV_DONTFORK)
-    #define     MEM_DOFORK(addr, nbytes)    madvise((addr), (nbytes), MADV_DOFORK)
+    #define     mem_dontfork(addr, nbytes)      \
+        madvise((addr), (nbytes), MADV_DONTFORK)
+    #define     mem_dofork(addr, nbytes)        \
+        madvise((addr), (nbytes), MADV_DOFORK)
+    #define     madvise_dont_need(addr, nbytes) \
+        madvise((addr), (nbytes), MADV_DONTNEED)    
 #elif defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-    #define     MEM_DONTFORK(addr, nbytes)  minherit((addr), (nbytes), INHERIT_NONE)
-    #define     MEM_DOFORK(addr, nbytes)    minherit((addr), (nbytes), INHERIT_COPY)
+    #define     mem_dontfork(addr, nbytes)      \
+        minherit((addr), (nbytes), INHERIT_NONE)
+    #define     mem_dofork(addr, nbytes)        \
+        minherit((addr), (nbytes), INHERIT_COPY)
+    #define     madvise_dont_need(addr, nbytes) \
+        madvise((addr), (nbytes), MADV_FREE)    
 #else
-    #define     MEM_DONTFORK(addr, nbytes)  ((void)0)
-    #define     MEM_DOFORK(addr, nbytes)    ((void)0)
+    #define     mem_dontfork(addr, nbytes)      ((void)0)
+    #define     mem_dofork(addr, nbytes)        ((void)0)
+    #define     madvise_dont_need(addr, nbytes) \
+        posix_madvise(addr, nbytes, POSIX_MADV_DONTNEED)
 #endif
 
 /**
@@ -200,23 +211,15 @@ def_auxil_madvise(
     size_t              nbytes,
     tsalloc_advice_t    flag
 ){
-    uintptr_t   ret;
+    int ret;
     
     if (flag & TSALLOC_ADVISE_RETAIN)
     {
-        ret = ((uintptr_t)mmap
-        (
-            addr, 
-            nbytes, 
-            (PROT_READ | PROT_WRITE), 
-            (MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED), 
-            -1, 
-            0
-        ));
-        if (((void*)ret) == MAP_FAILED)
+        ret = madvise_dont_need(addr, nbytes);
+        if (ret)
         {
             return -1;
-        };
+        }
     }
 
     /*

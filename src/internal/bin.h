@@ -42,7 +42,7 @@ bin_init(
     *bin    = (bin_t){0};
 }
 
-static inline uint8_t
+static inline int16_t
 bin_first_nonempty_bucket(
     uint8_t bitmap
 ){
