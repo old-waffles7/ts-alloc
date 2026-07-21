@@ -30,7 +30,7 @@ struct bin
 
     bucket_t            buckets[SPAN_NSTATES];
     tsalloc_szclass_t   szclass;
-    uint8_t             bitmap;
+    byte_t              bitmap;
 };
 typedef struct bin  bin_t;
 
@@ -58,17 +58,17 @@ static inline span_t*
 bin_get_span(
     bin_t  *bin
 ){
-    uint8_t bindex;
+    uint8_t idx;
 
-    bindex  = bin_first_nonempty_bucket(bin->bitmap);
-    if (bindex < 0)
+    idx = bin_first_nonempty_bucket(bin->bitmap);
+    if (idx < 0)
     {
         return nullptr;
     }
 
     span_t *span;
 
-    span    = bucket_pop(&(bin->buckets[bindex]));
+    span    = bucket_pop(&(bin->buckets[idx]));
     return span;
 }
 

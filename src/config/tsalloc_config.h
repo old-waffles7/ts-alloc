@@ -25,7 +25,7 @@ tsalloc_is_slab_alloc(
 /*
     get size-class of nbytes
 */
-static inline tsalloc_szclass_t
+static inline int32_t
 tsalloc_get_szclass(
     const tsalloc_config_t *cfg,
     size_t  nbytes
@@ -37,7 +37,7 @@ tsalloc_get_szclass(
 
     if (nbytes > (cfg->alloc_max))
     {
-        return (tsalloc_szclass_t)(-1);
+        return (-1);
     }
 
     //  slab

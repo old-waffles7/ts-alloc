@@ -75,7 +75,7 @@ span_create(
     nbytes  = tsalloc_szclass_span_size((arena_cfg->tsalloc_cfg), szclass);
     mem     = arena_cfg->auxil_map(
         arena_cfg->extra, 
-        _align? _align : arena_cfg->auxil_align, 
+        (_align != TSALLOC_DEFAULT_ARG)? _align : arena_cfg->auxil_align, 
         nbytes
     );
     if (!mem)
@@ -273,7 +273,7 @@ span_set_state(
                 nbytes,
                 TSALLOC_ADVISE_RETAIN
             );
-            if (!ret)
+            if (ret != 0)
             {
                 set_tsalloc_error(
                     error_ctx,

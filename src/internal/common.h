@@ -65,4 +65,7 @@ typedef double  float64_t;
 #endif  //_TSALLOC_CONFIG_H
 
 
+#define     TSALLOC_DEFAULT_ARG     0
+
+
 #endif  //COMMON_H
