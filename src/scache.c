@@ -7,7 +7,6 @@
 #include    "internal/span.h"
 #include    "internal/mutex.h"
 #include    "internal/objpool.h"
-#include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
 
@@ -129,26 +128,11 @@ tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
-    pagetrie_t         *pagetrie,
     objpool_t          *spanpool,
     scache_t           *cache,
     span_t            **dest,
-    size_t              nbytes,
-    size_t              align
+    tsalloc_szclass_t   szclass
 ){
-    tsalloc_szclass_t   szclass;
-
-    szclass = ((tsalloc_szclass_t)tsalloc_get_szclass(arena_cfg->tsalloc_cfg, nbytes));
-    if (((int32_t)szclass) == -1)
-    {
-        set_tsalloc_error(
-            error_ctx,
-            "scache_get_span::scach.c invalid argument nbytes",
-            TSALLOC_INVALID_ARGS
-        );
-        return TSALLOC_INVALID_ARGS;
-    }
-
     span_t         *span;
     bin_t          *bin;
     bool            isszclass;
@@ -171,9 +155,35 @@ scache_get_span(
             return ret;
         }
         *dest   = span;
-        return TSALLOC_SUCCESS;
     }
+    else 
+    {
+        span    = bin_get_span(bin);
+    }
+    
+    *dest   = span;
+
+    return TSALLOC_SUCCESS;
 }
 
+tsalloc_err_t
+scache_put_span(
+    tsalloc_errctx_t   *error_ctx,
+    arena_conf_t       *arena_cfg,
+    scache_t           *cache,
+    span_t             *span
+){
+    tsalloc_szclass_t   szclass;
+    tsalloc_err_t       ret;
 
+    szclass = ((tsalloc_szclass_t)span->flags.szclass);
+    ret     = bin_put_span(error_ctx, arena_cfg, &(cache->bins[szclass]), span);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
+}
 

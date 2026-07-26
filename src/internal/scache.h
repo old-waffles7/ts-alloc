@@ -10,7 +10,6 @@
 #include    "bin.h"
 #include    "span.h"
 #include    "mutex.h"
-#include    "pagetrie.h"
 
 
 struct span_cache
