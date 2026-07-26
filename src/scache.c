@@ -11,20 +11,21 @@
 
 
 static inline bool
-scache_find_nonempty_bin(
+scache_find_nonempty_bin_idx(
     scache_t               *cache,
-    bin_t                 **dest,
+    tsalloc_szclass_t      *dest,
     tsalloc_szclass_t       szclass
 ){
-    bin_t      *bin;
     uint64_t   *bitmap;
     uint64_t    idx;
     uint64_t    word;
     uint64_t    bit_idx;
     uint64_t    word_idx;
     uint64_t    max_word_idx;
-    bool        isszclass;
+    bool        isoverfit;
 
+    idx             = cache->nclasses;                
+    isoverfit       = true;                                  
     bitmap          = ((uint64_t*)(cache->bitmap));
     word_idx        = szclass / 64;
     bit_idx         = szclass % 64;
@@ -34,7 +35,7 @@ scache_find_nonempty_bin(
     if (word != 0)
     {
         idx         = (word_idx * 64) + __builtin_ctzll(word);
-        isszclass   = true;
+        isoverfit   = false;
     }
     else
     {
@@ -44,24 +45,41 @@ scache_find_nonempty_bin(
             if (word != 0)
             {
                 idx         = (i * 64) + __builtin_ctzll(word);
-                isszclass   = false;
+                isoverfit   = true;
                 break;
             }
         }
     }
 
-    if (idx >= cache->nclasses)
-    {
-        bin = nullptr;
-    }
-    else 
-    {
-        bin = &(cache->bins[idx]);
-    }
+    *dest   = (tsalloc_szclass_t)idx;
 
-    *dest   = bin;
+    return isoverfit;
+}
 
-    return isszclass;
+static inline void 
+scache_set_bitmap(
+    scache_t           *cache,
+    tsalloc_szclass_t   szclass,
+    bool                val
+){
+    uint64_t           *bitmap;
+    uint64_t           *mapword;
+    uint64_t            bit_idx;
+    uint64_t            word_idx;
+
+    word_idx    = szclass / 64;
+    bit_idx     = szclass % 64;
+    bitmap      = ((uint64_t*)cache->bitmap);
+    mapword     = &(bitmap[word_idx]);
+    
+    if (val)
+    {
+        *mapword   |= (1ULL << bit_idx);
+    }
+    else
+    {
+        *mapword   &= ~(1ULL << bit_idx);
+    }
 }
 
 
@@ -125,6 +143,29 @@ scache_deinit(
 }
 
 tsalloc_err_t
+scache_put_span(
+    tsalloc_errctx_t   *error_ctx,
+    arena_conf_t       *arena_cfg,
+    scache_t           *cache,
+    span_t             *span
+){
+    tsalloc_szclass_t   szclass;
+    tsalloc_err_t       ret;
+
+    szclass = ((tsalloc_szclass_t)span->flags.szclass);
+    ret     = bin_put_span(error_ctx, arena_cfg, &(cache->bins[szclass]), span);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    scache_set_bitmap(cache, szclass, true); 
+    
+    return TSALLOC_SUCCESS;
+}
+
+tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
@@ -133,13 +174,13 @@ scache_get_span(
     span_t            **dest,
     tsalloc_szclass_t   szclass
 ){
-    span_t         *span;
-    bin_t          *bin;
-    bool            isszclass;
-    tsalloc_err_t   ret;
+    span_t             *span;
+    tsalloc_szclass_t   bin_szclass;
+    tsalloc_err_t       ret;
+    bool                isoverfit;
 
-    isszclass   = scache_find_nonempty_bin(cache, &bin, szclass);
-    if (!bin)
+    isoverfit   = scache_find_nonempty_bin_idx(cache, &bin_szclass, szclass);
+    if (bin_szclass >= cache->nclasses)
     {
         ret = span_create(
             error_ctx, 
@@ -158,32 +199,50 @@ scache_get_span(
     }
     else 
     {
+        bin_t  *bin;
+
+        bin     = &(cache->bins[bin_szclass]);
         span    = bin_get_span(bin);
+
+        //  bin now empty
+        if (bin_isempty(bin))
+        {
+            scache_set_bitmap(cache, bin_szclass, false); 
+        }
+
+        //  span is overfit
+        if (isoverfit)
+        {
+            span_t *cut;
+
+            ret = span_split(
+                error_ctx, 
+                arena_cfg, 
+                spanpool, 
+                &span, 
+                &cut, 
+                szclass
+            );
+            if (ret != TSALLOC_SUCCESS){
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+
+            ret = scache_put_span(
+                error_ctx,
+                arena_cfg,
+                cache,
+                span
+            );
+            if (ret != TSALLOC_SUCCESS){
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+            span    = cut;
+        }
     }
     
     *dest   = span;
 
     return TSALLOC_SUCCESS;
 }
-
-tsalloc_err_t
-scache_put_span(
-    tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
-    scache_t           *cache,
-    span_t             *span
-){
-    tsalloc_szclass_t   szclass;
-    tsalloc_err_t       ret;
-
-    szclass = ((tsalloc_szclass_t)span->flags.szclass);
-    ret     = bin_put_span(error_ctx, arena_cfg, &(cache->bins[szclass]), span);
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    return TSALLOC_SUCCESS;
-}
-

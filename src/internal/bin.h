@@ -30,7 +30,7 @@ struct bin
 
     bucket_t            buckets[SPAN_NSTATES];
     tsalloc_szclass_t   szclass;
-    byte_t              bitmap;
+    byte_t              bitmap; // bit length >= SPAN_NSTATES
 };
 typedef struct bin  bin_t;
 
@@ -40,6 +40,13 @@ bin_init(
     tsalloc_szclass_t   szclass
 ){
     *bin    = (bin_t){0};
+}
+
+static inline bool 
+bin_isempty(
+    bin_t  *bin
+){
+    return (bin->bitmap == 0);
 }
 
 static inline int16_t
