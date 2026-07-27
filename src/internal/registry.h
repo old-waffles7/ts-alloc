@@ -17,6 +17,13 @@ typedef sll(registry)       registry_t;
 typedef sll_coord(registry) registry_coord_t;
 
 
+static inline bool
+registry_isempty(
+    registry_t *registry
+){
+    return !registry->head;
+}
+
 void 
 registry_push(
     registry_t *registry, 

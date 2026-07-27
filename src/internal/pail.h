@@ -9,6 +9,8 @@
 
 #include    "span.h"
 #include    "mutex.h"
+#include    "scache.h"
+#include    "objpool.h"
 #include    "registry.h"
 #include    "arenaconfig.h"
 
@@ -28,10 +30,70 @@ struct pail
     #endif  //OPT_TRACK_STATS
 
     const tsalloc_slab_info_t  *init_info;
-    registry_t  slabs;
-    mutex_t     lock;
+    registry_t          slabs;
+    mutex_t             lock;
+    tsalloc_szclass_t   szclass;
 };
 typedef struct pail pail_t;
+
+static inline tsalloc_err_t
+_pail_get_block(
+    tsalloc_errctx_t   *error_ctx,
+    arena_conf_t       *arena_cfg,
+    objpool_t          *spanpool,
+    objpool_t          *slabpool,
+    scache_t           *scache,
+    pail_t             *pail,
+    byte_t            **dest
+){
+    span_t *slab;
+
+    if (!pail->slabs.head)
+    {
+        tsalloc_err_t   ret;
+
+        ret = scache_get_span(
+            error_ctx, 
+            arena_cfg, 
+            spanpool, 
+            scache, 
+            &slab, 
+            pail->szclass
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+
+        ret = slab_init(
+            arena_cfg->tsalloc_cfg, 
+            pail->init_info, 
+            error_ctx, 
+            slabpool, 
+            slab
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+
+        registry_push(&(pail->slabs), slab);
+    }
+    else 
+    {
+        slab    = pail->slabs.head;
+    }
+
+    byte_t *block;
+
+    block   = slab_get_block(slab);
+
+    *dest   = block;
+
+    return TSALLOC_SUCCESS;
+}
 
 
 static inline tsalloc_err_t
@@ -63,6 +125,7 @@ pail_init(
     }
 
     pail->init_info = tsalloc_get_slabinfo(arena_cfg->tsalloc_cfg, szclass);
+    pail->szclass   = szclass;
 
     return TSALLOC_SUCCESS;
 }
@@ -82,6 +145,20 @@ pail_deinit(
     }
 
     return TSALLOC_SUCCESS;
+}
+
+static inline tsalloc_err_t
+pail_get_blocks(
+    tsalloc_errctx_t   *error_ctx,
+    arena_conf_t       *arena_cfg,
+    objpool_t          *spanpool,
+    objpool_t          *slabpool,
+    scache_t           *scache,
+    pail_t             *pail,
+    byte_t**            dest,
+    size_t              nblocks
+){
+    
 }
 
 

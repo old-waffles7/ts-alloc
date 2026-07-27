@@ -49,6 +49,37 @@ slab_deinit(
     objpool_free(slabpool, ((void*)(span->slab_metadata)));
 }
 
+byte_t*
+slab_get_block(
+    span_t *span
+){
+    slab_t     *slab;
+    byte_t     *base_mem;
+    uint64_t   *bitmap;
+    uint64_t    word_idx;
+    uint64_t    word;
+    uint64_t    bit_idx;
+    uint64_t    block_idx;
+
+    slab        = span->slab_metadata;       
+    base_mem    = span->addr;       
+    bitmap      = (uint64_t*)(slab->bitmap);
+    word_idx    = 0;
+
+    while ((word = bitmap[word_idx]) == ~0ULL)
+    {
+        word_idx++;
+    }
+
+    bit_idx     = __builtin_ctzll(~word);
+    block_idx   = (word_idx * 64) + bit_idx;
+
+    bitmap[word_idx] |= (1ULL << bit_idx);
+    slab->nblocks_free--;
+
+    return (byte_t*)(base_mem + (block_idx * slab->nbytes_block));
+}
+
 
 tsalloc_err_t
 span_create(

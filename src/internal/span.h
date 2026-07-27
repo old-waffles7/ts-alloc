@@ -75,6 +75,18 @@ slab_deinit(
     span_t     *span
 );
 
+/*
+ * @brief   retrieves a free block from a slab using its bitmap
+ *
+ * @param   span    pointer to the span containing the slab metadata and memory
+ *
+ * @return  pointer to the allocated block
+ */
+byte_t*
+slab_get_block(
+    span_t *span
+);
+
 
 /*
  * @struct  span
