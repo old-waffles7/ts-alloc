@@ -11,6 +11,7 @@
 #include    "mutex.h"
 #include    "scache.h"
 #include    "objpool.h"
+#include    "pagetrie.h"
 #include    "registry.h"
 #include    "arenaconfig.h"
 
@@ -40,7 +41,6 @@ static inline tsalloc_err_t
 _pail_get_block(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
-    objpool_t          *spanpool,
     objpool_t          *slabpool,
     scache_t           *scache,
     pail_t             *pail,
@@ -55,7 +55,6 @@ _pail_get_block(
         ret = scache_get_span(
             error_ctx, 
             arena_cfg, 
-            spanpool, 
             scache, 
             &slab, 
             pail->szclass
@@ -80,6 +79,7 @@ _pail_get_block(
         }
 
         registry_push(&(pail->slabs), slab);
+        // insert into pagetrie
     }
     else 
     {
@@ -89,6 +89,10 @@ _pail_get_block(
     byte_t *block;
 
     block   = slab_get_block(slab);
+    if (slab->slab_metadata->nblocks_free == 0)
+    {
+        registry_pop(&(pail->slabs));
+    }
 
     *dest   = block;
 

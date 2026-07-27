@@ -4,6 +4,7 @@
 #include    "internal/span.h"
 
 #include    "internal/objpool.h"
+#include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
 

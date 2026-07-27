@@ -59,6 +59,7 @@ pagetrie_deinit(
  * @param   pagetrie    pointer to the pagetrie instance
  * @param   key         virtual memory address in page to map
  * @param   data        pointer to the metadata to associate with the page
+ * @param   nbytes      size of key
  * 
  * @return  status code representing success or failure
  */
@@ -67,7 +68,8 @@ pagetrie_insert(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
     void               *key,
-    void               *data
+    void               *data,
+    size_t              nbytes
 );
 
 /*
@@ -93,7 +95,8 @@ pagetrie_lookup(
 bool 
 pagetrie_remove(
     pagetrie_t *pagetrie,
-    void       *key
+    void       *key,
+    size_t      nbytes                                                
 );
 
 

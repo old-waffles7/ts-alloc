@@ -1,5 +1,3 @@
-
-
 /*
 struct arena
 {
@@ -23,7 +21,7 @@ struct arena
         array of slabs for eaach slab block szclass
         each as a linked list? idk the need for the linked list
     
-    -   span cache, sncache instace
+    -   span cache, scache instace
 
     -   span registry for destruction
 
@@ -38,3 +36,6 @@ struct arena
     -   stats nbytes_alloc i think is enough then api to fetch it
 }
 */
+
+
+
