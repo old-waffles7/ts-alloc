@@ -12,8 +12,6 @@
 #include    "bucket.h"
 #include    "arenaconfig.h"
 
-#include    <string.h>
-
 
 struct bin_stats
 {
