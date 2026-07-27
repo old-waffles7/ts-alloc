@@ -26,8 +26,9 @@ struct span_cache
 {
     bin_t      *bins;       ///< pointer to the array of bins
     byte_t     *bitmap;     ///< pointer to the bitmap tracking non-empty bins
-    size_t      nclasses;   ///< number of size classes managed by the cache
+    objpool_t   spanpool;   ///< object-pool for span descriptors
     mutex_t     lock;       ///< mutex for thread-safe access
+    size_t      nclasses;   ///< number of size classes managed by the cache
 };
 typedef struct span_cache   scache_t;
 
@@ -118,7 +119,6 @@ tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
-    objpool_t          *spanpool,
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   szclass

@@ -109,6 +109,20 @@ scache_init(
         return ret;
     }
 
+    ret = objpool_init(
+        error_ctx, 
+        &(cache->spanpool), 
+        0,                  // !later implement TSALLOCDEFAULTARG
+        sizeof(span_t), 
+        64                  // !replace later with macro dependent on pagesize? maybe remove arg
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        mutex_deinit(error_ctx, &(cache->lock));
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
     byte_t *bitmap_addr;
     size_t  nclasses;
     size_t  bitmap_bytes;
@@ -169,7 +183,6 @@ tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
-    objpool_t          *spanpool,
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   szclass
@@ -185,7 +198,7 @@ scache_get_span(
         ret = span_create(
             error_ctx, 
             arena_cfg, 
-            spanpool, 
+            &(cache->spanpool), 
             &span, 
             szclass, 
             TSALLOC_DEFAULT_ARG
@@ -218,7 +231,7 @@ scache_get_span(
             ret = span_split(
                 error_ctx, 
                 arena_cfg, 
-                spanpool, 
+                &(cache->spanpool), 
                 &span, 
                 &cut, 
                 szclass

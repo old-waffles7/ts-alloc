@@ -148,7 +148,7 @@ pail_deinit(
 }
 
 static inline tsalloc_err_t
-pail_get_blocks(
+pail_get_batch(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
     objpool_t          *spanpool,
@@ -158,7 +158,7 @@ pail_get_blocks(
     byte_t**            dest,
     size_t              nblocks
 ){
-    
+
 }
 
 
