@@ -15,6 +15,7 @@
 #include    "bin.h"
 #include    "span.h"
 #include    "mutex.h"
+#include    "arenaconfig.h"
 
 
 /*

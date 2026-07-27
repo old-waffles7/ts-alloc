@@ -62,10 +62,10 @@ scache_set_bitmap(
     tsalloc_szclass_t   szclass,
     bool                val
 ){
-    uint64_t           *bitmap;
-    uint64_t           *mapword;
-    uint64_t            bit_idx;
-    uint64_t            word_idx;
+    uint64_t   *bitmap;
+    uint64_t   *mapword;
+    uint64_t    bit_idx;
+    uint64_t    word_idx;
 
     word_idx    = szclass / 64;
     bit_idx     = szclass % 64;
