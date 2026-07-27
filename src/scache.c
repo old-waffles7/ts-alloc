@@ -7,6 +7,7 @@
 #include    "internal/span.h"
 #include    "internal/mutex.h"
 #include    "internal/objpool.h"
+#include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
 
@@ -35,7 +36,7 @@ scache_find_nonempty_bin_idx(
     if (word != 0)
     {
         idx         = (word_idx * 64) + __builtin_ctzll(word);
-        isoverfit   = false;
+        isoverfit   = (idx > szclass);
     }
     else
     {
@@ -109,6 +110,13 @@ scache_init(
         return ret;
     }
 
+    ret = pagetrie_init(error_ctx, &(cache->pagetrie));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
     ret = objpool_init(
         error_ctx, 
         &(cache->spanpool), 
@@ -132,6 +140,8 @@ scache_init(
     bitmap_addr     = auxil_mem + (sizeof(bin_t) * nclasses);
     bitmap_bytes    = ((nclasses + 63) / 64) * 8;
 
+    cache->origins  = (registry_t){0};
+    cache->epoch    = 0;
     cache->bitmap   = bitmap_addr;
     cache->nclasses = nclasses;
     memset(cache->bitmap, 0, bitmap_bytes);
@@ -163,8 +173,89 @@ scache_put_span(
     scache_t           *cache,
     span_t             *span
 ){
+    span_t         *lspan;
+    span_t         *rspan;
+    span_t         *_lspan;
+    void           *cached_addr;
+    size_t          cached_nbytes;
+    tsalloc_err_t   ret;
+
+    span_get_adj(&(cache->pagetrie), span, &lspan, &rspan);
+    
+    if (lspan
+        && (((!arena_cfg->allow_cross_origin_merge) && (lspan->flags.age == span->flags.age))
+        || ((arena_cfg->allow_cross_origin_merge))))
+    {
+        cached_addr     = span->addr;
+        cached_nbytes   = span->nbytes;
+
+        //  lspan descriptor augmented, placed in _lspan
+        ret = span_coalesce(
+            error_ctx, 
+            arena_cfg, 
+            &(cache->spanpool), 
+            lspan, 
+            span, 
+            &_lspan
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        //  need only overwrite only pagetrie entries for rightmost span
+        ret = pagetrie_insert(
+            error_ctx, 
+            &(cache->pagetrie), 
+            cached_addr, 
+            _lspan, 
+            cached_nbytes
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        span    = _lspan;
+    }
+
+    if (rspan
+        && (((!arena_cfg->allow_cross_origin_merge) && (span->flags.age == rspan->flags.age))
+        || ((arena_cfg->allow_cross_origin_merge))))
+    {
+        cached_addr     = rspan->addr;
+        cached_nbytes   = rspan->nbytes;
+
+        ret = span_coalesce(
+            error_ctx, 
+            arena_cfg, 
+            &(cache->spanpool), 
+            span, 
+            rspan, 
+            &_lspan
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        
+        ret = pagetrie_insert(
+            error_ctx, 
+            &(cache->pagetrie), 
+            cached_addr, 
+            _lspan, 
+            cached_nbytes
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        span    = _lspan;
+    }
+
     tsalloc_szclass_t   szclass;
-    tsalloc_err_t       ret;
 
     szclass = ((tsalloc_szclass_t)span->flags.szclass);
     ret     = bin_put_span(error_ctx, arena_cfg, &(cache->bins[szclass]), span);
@@ -199,8 +290,9 @@ scache_get_span(
             error_ctx, 
             arena_cfg, 
             &(cache->spanpool), 
-            &span, 
-            szclass, 
+            &span,
+            &(cache->epoch),
+            (arena_cfg->default_new_span_szclass > szclass)? arena_cfg->default_new_span_szclass : szclass, 
             TSALLOC_DEFAULT_ARG
         );
         if (ret != TSALLOC_SUCCESS)
@@ -208,7 +300,28 @@ scache_get_span(
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
-        *dest   = span;
+
+        ret = pagetrie_insert(
+            error_ctx, 
+            &(cache->pagetrie), 
+            span->addr, 
+            span, 
+            span->nbytes
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            span_destroy(
+                error_ctx, 
+                arena_cfg, 
+                &(cache->spanpool),  
+                span
+            );
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+
+        registry_push(&(cache->origins), span);
+        isoverfit   = span->flags.szclass > szclass;
     }
     else 
     {
@@ -216,43 +329,40 @@ scache_get_span(
 
         bin     = &(cache->bins[bin_szclass]);
         span    = bin_get_span(bin);
-
-        //  bin now empty
         if (bin_isempty(bin))
         {
             scache_set_bitmap(cache, bin_szclass, false); 
         }
+    }
 
-        //  span is overfit
-        if (isoverfit)
-        {
-            span_t *cut;
+    if (isoverfit)
+    {
+        span_t *cut;
 
-            ret = span_split(
-                error_ctx, 
-                arena_cfg, 
-                &(cache->spanpool), 
-                &span, 
-                &cut, 
-                szclass
-            );
-            if (ret != TSALLOC_SUCCESS){
-                append_tsalloc_error_trace(error_ctx);
-                return ret;
-            }
-
-            ret = scache_put_span(
-                error_ctx,
-                arena_cfg,
-                cache,
-                span
-            );
-            if (ret != TSALLOC_SUCCESS){
-                append_tsalloc_error_trace(error_ctx);
-                return ret;
-            }
-            span    = cut;
+        ret = span_split(
+            error_ctx, 
+            arena_cfg, 
+            &(cache->spanpool), 
+            &span, 
+            &cut, 
+            szclass
+        );
+        if (ret != TSALLOC_SUCCESS){
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
         }
+
+        ret = scache_put_span(
+            error_ctx,
+            arena_cfg,
+            cache,
+            span
+        );
+        if (ret != TSALLOC_SUCCESS){
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        span    = cut;
     }
     
     *dest   = span;

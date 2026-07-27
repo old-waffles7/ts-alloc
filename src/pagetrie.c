@@ -25,7 +25,7 @@ union node
 typedef union node  node_t;
 
 
-inline tsalloc_err_t
+tsalloc_err_t
 pagetrie_init(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie
@@ -71,7 +71,7 @@ pagetrie_init(
     return TSALLOC_SUCCESS;
 }
 
-inline void
+void
 pagetrie_deinit(
     pagetrie_t *pagetrie
 ){

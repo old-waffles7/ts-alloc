@@ -15,6 +15,8 @@
 #include    "bin.h"
 #include    "span.h"
 #include    "mutex.h"
+#include    "registry.h"
+#include    "pagetrie.h"
 #include    "arenaconfig.h"
 
 
@@ -26,8 +28,11 @@ struct span_cache
 {
     bin_t      *bins;       ///< pointer to the array of bins
     byte_t     *bitmap;     ///< pointer to the bitmap tracking non-empty bins
+    registry_t  origins;    ///< linked-list for tracking origin span descriptors, facillitates explicit global destruction
+    pagetrie_t  pagetrie;   ///< pagetrie for tracking span descriptors, facillitates coalescion
     objpool_t   spanpool;   ///< object-pool for span descriptors
     mutex_t     lock;       ///< mutex for thread-safe access
+    uint32_t    epoch;      ///< cache-global epoch for initializing ages of newly minteed spans
     size_t      nclasses;   ///< number of size classes managed by the cache
 };
 typedef struct span_cache   scache_t;
@@ -78,6 +83,8 @@ scache_init(
  * @param   cache       pointer to the span cache being deinitialized
  *
  * @return  status code representing success or failure
+ * 
+ * @warning does not unmap any memory, allocated or cached
  */
 tsalloc_err_t
 scache_deinit(

@@ -11,7 +11,6 @@
 #include    "mutex.h"
 #include    "scache.h"
 #include    "objpool.h"
-#include    "pagetrie.h"
 #include    "registry.h"
 #include    "arenaconfig.h"
 
@@ -32,16 +31,18 @@ struct pail
 
     const tsalloc_slab_info_t  *init_info;
     registry_t          slabs;
+    objpool_t           slabpool;
     mutex_t             lock;
     tsalloc_szclass_t   szclass;
 };
 typedef struct pail pail_t;
 
+// update functionalities for new abstractions like the spanpool being moved, no more direct
+// interface with pagetrie
 static inline tsalloc_err_t
 _pail_get_block(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_cfg,
-    objpool_t          *slabpool,
     scache_t           *scache,
     pail_t             *pail,
     byte_t            **dest

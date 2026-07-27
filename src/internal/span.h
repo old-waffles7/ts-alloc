@@ -13,6 +13,7 @@
 
 #include    "bucket.h"
 #include    "objpool.h"
+#include    "pagetrie.h"
 #include    "registry.h"
 #include    "arenaconfig.h"
 
@@ -96,7 +97,7 @@ struct span
 {
     struct 
     {
-        uint64_t    age         : 16;   ///< age of the span, max 65535
+        uint64_t    age         : 32;   ///< age/origin-uid of the span, max 4294967296
         uint64_t    szclass     : 16;   ///< size class index, max 65535
         uint64_t    arena       : 12;   ///< arena index, max 4096
         uint64_t    state       : 2;    ///< 0 clean -> 1 dirty -> 2 may not need -> 3 do not need
@@ -123,6 +124,7 @@ typedef struct span span_t;
  * @param   arena_cfg   pointer to the arena configuration struct
  * @param   spanpool    pointer to the object pool for span metadata
  * @param   dest        double pointer to output the newly created span
+ * @param   epoch       age/uid of newly minted span 
  * @param   szclass     size class of the span being created
  * @param   _align      memory alignment requirement
  *
@@ -134,6 +136,7 @@ span_create(
     arena_conf_t       *arena_cfg,
     objpool_t          *spanpool,
     span_t            **dest,
+    uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
     size_t              _align
 );
@@ -148,7 +151,7 @@ span_create(
  *
  * @return  status code representing success or failure
  */
-inline tsalloc_err_t
+tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_config,
@@ -216,6 +219,22 @@ span_set_state(
     arena_conf_t           *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
+);
+
+/*
+ * @brief   retrieves the left and right adjacent spans from the pagetrie
+ *
+ * @param   pagetrie    pointer to the pagetrie
+ * @param   span        pointer to the target span
+ * @param   dest_lspan  pointer to store the left adjacent span
+ * @param   dest_rspan  pointer to store the right adjacent span
+ */
+void
+span_get_adj(
+    pagetrie_t *pagetrie,
+    span_t     *span,
+    span_t    **dest_lspan,
+    span_t    **dest_rspan
 );
 
 

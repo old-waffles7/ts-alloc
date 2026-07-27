@@ -88,6 +88,7 @@ span_create(
     arena_conf_t       *arena_cfg,
     objpool_t          *spanpool,
     span_t            **dest,
+    uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
     size_t              _align
 ){
@@ -123,17 +124,19 @@ span_create(
     }
 
     *span   = (span_t){
+        .flags.age      = *epoch,
         .flags.szclass  = szclass,
         .addr           = mem,
         .nbytes         = nbytes
     };
+    *epoch += 1;
 
     *dest   = span;
 
     return TSALLOC_SUCCESS;
 }
 
-inline tsalloc_err_t
+tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
     arena_conf_t       *arena_config,
@@ -328,4 +331,21 @@ span_set_state(
     }
 
     return TSALLOC_SUCCESS;
+}
+
+void
+span_get_adj(
+    pagetrie_t *pagetrie,
+    span_t     *span,
+    span_t    **dest_lspan,
+    span_t    **dest_rspan
+){
+    void *l_addr;
+    void *r_addr;
+
+    l_addr = (void*)(((uintptr_t)span->addr) - 1);
+    r_addr = (void*)(((uintptr_t)span->addr) + span->nbytes + 1);
+
+    *dest_lspan = (span_t*)pagetrie_lookup(pagetrie, l_addr);
+    *dest_rspan = (span_t*)pagetrie_lookup(pagetrie, r_addr);
 }

@@ -36,7 +36,7 @@ typedef struct pagetrie pagetrie_t;
  * 
  * @return  status code representing success or failure
  */
-inline tsalloc_err_t
+tsalloc_err_t
 pagetrie_init(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie
@@ -47,7 +47,7 @@ pagetrie_init(
  * 
  * @param   pagetrie    pointer to the pagetrie to deinitialize
  */
-inline void
+void
 pagetrie_deinit(
     pagetrie_t *pagetrie
 );
