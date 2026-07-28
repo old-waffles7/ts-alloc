@@ -140,6 +140,9 @@ scache_can_merge(
         return false;
     }
     if ((!lspan->flags.is_alloc) || ((!rspan->flags.is_alloc)))
+    {
+        return false;
+    }
     return arena_cfg->allow_cross_origin_merge || (lspan->flags.age == rspan->flags.age);
 }
 
@@ -240,10 +243,10 @@ scache_init(
     size_t  bitmap_bytes;
     
     nclasses        = (arena_cfg->tsalloc_cfg->nszclasses);
-    cache->bins     = (bin_t*)auxil_mem;    
     bitmap_addr     = auxil_mem + (sizeof(bin_t) * nclasses);
     bitmap_bytes    = ((nclasses + 63) / 64) * 8;
 
+    cache->bins     = (bin_t*)auxil_mem;
     cache->origins  = (registry_t){0};
     cache->epoch    = 0;
     cache->bitmap   = bitmap_addr;

@@ -88,6 +88,18 @@ slab_get_block(
     span_t *span
 );
 
+/*
+ * @brief   frees a block back to a slab by clearing its bitmap entry
+ *
+ * @param   span    pointer to the span containing the slab metadata and memory
+ * @param   block   pointer to the memory block being freed
+ */
+void
+slab_put_block(
+    span_t *span,
+    void   *block
+);
+
 
 /*
  * @struct  span

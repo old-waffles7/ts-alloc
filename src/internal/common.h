@@ -1,3 +1,4 @@
+
 /**
  * @file    common.h
  * @brief   definitions of commonly used functionalities

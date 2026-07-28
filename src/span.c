@@ -81,6 +81,30 @@ slab_get_block(
     return (byte_t*)(base_mem + (block_idx * slab->nbytes_block));
 }
 
+void
+slab_put_block(
+    span_t *span,
+    void   *block
+){
+    slab_t     *slab;
+    uint64_t   *bitmap;
+    uintptr_t   offset;
+    uint64_t    block_idx;
+    uint64_t    word_idx;
+    uint64_t    bit_idx;
+
+    slab        = span->slab_metadata;
+    bitmap      = (uint64_t*)(slab->bitmap);
+    offset      = (uintptr_t)block - (uintptr_t)(span->addr);
+
+    block_idx   = offset / slab->nbytes_block;
+    word_idx    = block_idx / 64;
+    bit_idx     = block_idx % 64;
+
+    bitmap[word_idx] &= ~(1ULL << bit_idx);
+    slab->nblocks_free++;
+}
+
 
 tsalloc_err_t
 span_create(

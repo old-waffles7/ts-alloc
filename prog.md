@@ -27,10 +27,6 @@ tsalloc_szclass_t   szclass;
         return TSALLOC_INVALID_ARGS;
     }
 
-- region to span
-
-- mutex lock slabs for gettign blocks to tcache, not entire arena. so for each bin
-
 - make ram pinnable via a pin_alloc or something like that (in malloc.h not arena.h)
   maybe use mlock, posix portable
 
@@ -50,14 +46,8 @@ tsalloc_szclass_t   szclass;
 
 - scahce dirty -> clean -> retained
 
-- can have slabcache sbcache release batches of blocks at once by intruusively chaining them into
-  a LL that will just be pushed onto top of tcache LL. also slab bins ahve to be LL for slabs that
-  get completely freed.
-
-- when a block in tcache is too old the cleanup function will 'wake up' its span by calling an 
-  arena_t function that will traverse pagetrie to find the span. span is then pushed onto 
-  non_empty from back?
-
 - remove nobjs per block argument from objpool_init
+
+- arena
 
 

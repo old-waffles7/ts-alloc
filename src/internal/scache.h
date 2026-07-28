@@ -1,3 +1,4 @@
+
 /*
  * @file    scache.h
  * @brief   definitions of functionalities for managing the span cache
@@ -57,6 +58,23 @@ scache_auxil_mem_size(
 
     return nbytes;
 }
+
+/*
+ * @brief   returns pointer to span descriptor associated with specified memory address
+ *
+ * @param   cache   pointer to the span cache being searched
+ * @param   addr    memory address to be used as a key
+ *
+ * @return  pointer to the assocated span if it exists, otherwise `nullptr`
+ */
+static inline span_t*
+scache_mapto_span(
+    scache_t   *cache,
+    void       *addr
+){
+    return ((span_t*)pagetrie_lookup(&(cache->pagetrie), addr));
+}
+
 
 /*
  * @brief   initializes a new span cache

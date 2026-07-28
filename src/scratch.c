@@ -37,7 +37,7 @@ struct arena
 }
 */
 
-
+/*
 #include    "internal/common.h"
 #include    "internal/error.h"
 #include    "internal/bcache.h"
@@ -118,7 +118,7 @@ bcache_deinit(
 
 tsalloc_err_t
 bcache_
-
+*/
 
 
 
