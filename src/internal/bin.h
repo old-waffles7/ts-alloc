@@ -80,7 +80,7 @@ bin_get_span(
 static inline tsalloc_err_t
 bin_put_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     bin_t              *bin,
     span_t             *span
 ){

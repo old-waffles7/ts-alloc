@@ -10,8 +10,8 @@
 
 tsalloc_err_t
 slab_init(
-    const tsalloc_config_t     *cfg,
     const tsalloc_slab_info_t  *slabinfo,
+    const tsalloc_cfg_t        *cfg,
     tsalloc_errctx_t   *error_ctx,
     objpool_t          *slabpool,
     span_t             *span
@@ -85,7 +85,7 @@ slab_get_block(
 tsalloc_err_t
 span_create(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t            **dest,
     uint32_t           *epoch,
@@ -139,7 +139,7 @@ span_create(
 tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_config,
+    arena_cfg_t        *arena_config,
     objpool_t          *spanpool,
     span_t             *span
 ){
@@ -171,7 +171,7 @@ span_destroy(
 tsalloc_err_t
 span_split(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t            **origin,
     span_t            **dest,
@@ -230,7 +230,7 @@ span_split(
 tsalloc_err_t
 span_coalesce(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *lspan,
     span_t             *rspan,
@@ -278,7 +278,7 @@ span_coalesce(
 tsalloc_err_t
 span_set_state(
     tsalloc_errctx_t       *error_ctx,
-    arena_conf_t           *arena_cfg,
+    arena_cfg_t            *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
 ){

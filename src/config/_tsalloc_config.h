@@ -35,7 +35,7 @@ struct tsalloc_config
 	const tsalloc_slab_info_t*	slab_infos;
 	const uint32_t*				tcache_info;
 };
-typedef	struct tsalloc_config	tsalloc_config_t;
+typedef	struct tsalloc_config	tsalloc_cfg_t;
 
 
 // -----[TSALLOC_CONFIG_START: 4096]-----
@@ -88,7 +88,7 @@ static const uint32_t	tcache_info_4096[33]			= {
     128, 64, 128, 32, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
 };
 
-static const tsalloc_config_t	config_4096	= {
+static const tsalloc_cfg_t	config_4096	= {
 	.page_size              = 4096,
 	.min_align              = 16,
 	.epoch                  = 4,
@@ -158,7 +158,7 @@ static const uint32_t	tcache_info_16384[33]			= {
     128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
 };
 
-static const tsalloc_config_t	config_16384	= {
+static const tsalloc_cfg_t	config_16384	= {
 	.page_size              = 16384,
 	.min_align              = 16,
 	.epoch                  = 4,
@@ -228,7 +228,7 @@ static const uint32_t	tcache_info_32768[33]			= {
     128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
 };
 
-static const tsalloc_config_t	config_32768	= {
+static const tsalloc_cfg_t	config_32768	= {
 	.page_size              = 32768,
 	.min_align              = 16,
 	.epoch                  = 4,
@@ -298,7 +298,7 @@ static const uint32_t	tcache_info_65536[33]			= {
     128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
 };
 
-static const tsalloc_config_t	config_65536	= {
+static const tsalloc_cfg_t	config_65536	= {
 	.page_size              = 65536,
 	.min_align              = 16,
 	.epoch                  = 4,
@@ -372,7 +372,7 @@ static const uint32_t	tcache_info_2097152[37]			= {
     128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 128
 };
 
-static const tsalloc_config_t	config_2097152	= {
+static const tsalloc_cfg_t	config_2097152	= {
 	.page_size              = 2097152,
 	.min_align              = 256,
 	.epoch                  = 4,

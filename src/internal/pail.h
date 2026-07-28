@@ -37,13 +37,52 @@ struct pail
 };
 typedef struct pail pail_t;
 
-// update functionalities for new abstractions like the spanpool being moved, no more direct
-// interface with pagetrie
+static tsalloc_err_t
+_pail_mint_slab(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *spancache,
+    pail_t             *pail
+){
+    span_t         *slab;
+    tsalloc_err_t   ret;
+
+    ret = scache_get_span(
+        error_ctx, 
+        arena_cfg, 
+        spancache, 
+        &slab, 
+        pail->szclass
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    ret = slab_init(
+        pail->init_info, 
+        arena_cfg->tsalloc_cfg, 
+        error_ctx, 
+        &(pail->slabpool), 
+        slab
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    registry_push(&(pail->slabs), slab);
+
+    return TSALLOC_SUCCESS;
+}
+
 static inline tsalloc_err_t
 _pail_get_block(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
-    scache_t           *scache,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *spancache,
     pail_t             *pail,
     byte_t            **dest
 ){
@@ -53,39 +92,19 @@ _pail_get_block(
     {
         tsalloc_err_t   ret;
 
-        ret = scache_get_span(
+        ret = _pail_mint_slab(
             error_ctx, 
             arena_cfg, 
-            scache, 
-            &slab, 
-            pail->szclass
+            spancache, 
+            pail
         );
         if (ret != TSALLOC_SUCCESS)
         {
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
-
-        ret = slab_init(
-            arena_cfg->tsalloc_cfg, 
-            pail->init_info, 
-            error_ctx, 
-            slabpool, 
-            slab
-        );
-        if (ret != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(error_ctx);
-            return ret;
-        }
-
-        registry_push(&(pail->slabs), slab);
-        // insert into pagetrie
     }
-    else 
-    {
-        slab    = pail->slabs.head;
-    }
+    slab    = pail->slabs.head;
 
     byte_t *block;
 
@@ -104,7 +123,7 @@ _pail_get_block(
 static inline tsalloc_err_t
 pail_init(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     pail_t             *pail,
     tsalloc_szclass_t   szclass
 ){
@@ -121,6 +140,19 @@ pail_init(
     }
 
     tsalloc_err_t   ret;
+
+    ret = objpool_init(
+        error_ctx, 
+        &(pail->slabpool), 
+        TSALLOC_DEFAULT_ARG, 
+        sizeof(slab_t), 
+        256
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
 
     ret = mutex_init(error_ctx, &(pail->lock));
     if (ret != TSALLOC_SUCCESS)
@@ -142,6 +174,7 @@ pail_deinit(
 ){
     tsalloc_err_t   ret;
 
+    objpool_deinit(&(pail->slabpool));
     ret = mutex_deinit(error_ctx, &(pail->lock));
     if (ret != TSALLOC_SUCCESS)
     {
@@ -155,15 +188,39 @@ pail_deinit(
 static inline tsalloc_err_t
 pail_get_batch(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
-    objpool_t          *spanpool,
-    objpool_t          *slabpool,
-    scache_t           *scache,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *spancache,
     pail_t             *pail,
-    byte_t**            dest,
+    byte_t            **dest,
     size_t              nblocks
 ){
+    tsalloc_err_t   ret;
 
+    for (int i = 0; i < nblocks; i++)
+    {
+        ret = _pail_get_block(
+            error_ctx, 
+            arena_cfg, 
+            spancache, 
+            pail, 
+            &(dest[i])
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+    }
+
+    return TSALLOC_SUCCESS;
+}
+
+static inline void
+pail_put_slab(
+    pail_t *pail,
+    span_t *slab
+){
+    registry_push(&(pail->slabs), slab);
 }
 
 

@@ -114,7 +114,7 @@ struct arena_config
     auxil_madvise_fn    auxil_madvise;
 
     void               *extra;          ///< pointer to state for use by user in auxiliary mapping, unmapping functions
-    tsalloc_config_t   *tsalloc_cfg;    ///< pointer to configuration profile for library
+    tsalloc_cfg_t      *tsalloc_cfg;    ///< pointer to configuration profile for library
     
     tsalloc_szclass_t   default_new_span_szclass;
     size_t              auxil_align;    ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
@@ -124,7 +124,7 @@ struct arena_config
     bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
 };
 
-typedef struct arena_config arena_conf_t;
+typedef struct arena_config arena_cfg_t;
 
 /**
  * @brief   default auxiliary mapping function for cpu memory

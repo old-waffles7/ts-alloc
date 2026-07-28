@@ -46,7 +46,7 @@ typedef struct span_cache   scache_t;
  */
 static inline size_t
 scache_auxil_mem_size(
-    arena_conf_t   *arena_cfg
+    arena_cfg_t        *arena_cfg
 ){
     size_t  nbytes;
     size_t  nclasses;
@@ -71,7 +71,7 @@ scache_auxil_mem_size(
 tsalloc_err_t
 scache_init(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     byte_t             *auxil_mem,
     scache_t           *cache
 );
@@ -105,7 +105,7 @@ scache_deinit(
 tsalloc_err_t
 scache_put_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t             *span
 );
@@ -125,7 +125,7 @@ scache_put_span(
 tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   szclass

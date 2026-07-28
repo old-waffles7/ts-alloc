@@ -86,7 +86,7 @@ scache_set_bitmap(
 static inline tsalloc_err_t
 scache_merge_and_update(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t             *lspan,
     span_t             *rspan,
@@ -131,21 +131,22 @@ scache_merge_and_update(
 
 static inline bool
 scache_can_merge(
-    arena_conf_t *arena_cfg,
-    span_t       *span,
-    span_t       *neighbor
+    arena_cfg_t *arena_cfg,
+    span_t       *lspan,
+    span_t       *rspan
 ){
-    if (!neighbor)
+    if ((!lspan) || (!rspan))
     {
         return false;
     }
-    return arena_cfg->allow_cross_origin_merge || (span->flags.age == neighbor->flags.age);
+    if ((!lspan->flags.is_alloc) || ((!rspan->flags.is_alloc)))
+    return arena_cfg->allow_cross_origin_merge || (lspan->flags.age == rspan->flags.age);
 }
 
 static inline tsalloc_err_t
 scache_mint_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   req_szclass
@@ -190,7 +191,7 @@ scache_mint_span(
 tsalloc_err_t
 scache_init(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     byte_t             *auxil_mem,
     scache_t           *cache
 ){
@@ -272,7 +273,7 @@ scache_deinit(
 tsalloc_err_t
 scache_put_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t             *span
 ){
@@ -282,8 +283,8 @@ scache_put_span(
     tsalloc_err_t       ret;
     tsalloc_szclass_t   szclass;
 
+    span->flags.is_alloc    = false;
     span_get_adj(&(cache->pagetrie), span, &lspan, &rspan);
-    
     if (scache_can_merge(arena_cfg, span, lspan))
     {
         ret = scache_merge_and_update(
@@ -328,7 +329,7 @@ scache_put_span(
 tsalloc_err_t
 scache_get_span(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   szclass
@@ -379,6 +380,8 @@ scache_get_span(
         }
         span = cut;
     }
+
+    span->flags.is_alloc    = true;
     
     *dest = span;
 

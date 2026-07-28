@@ -57,8 +57,8 @@ typedef struct slab slab_t;
  */
 tsalloc_err_t
 slab_init(
-    const tsalloc_config_t     *cfg,
     const tsalloc_slab_info_t  *slabinfo,
+    const tsalloc_cfg_t        *cfg,
     tsalloc_errctx_t   *error_ctx,
     objpool_t          *slabpool,
     span_t             *span
@@ -97,12 +97,13 @@ struct span
 {
     struct 
     {
-        uint64_t    age         : 32;   ///< age/origin-uid of the span, max 4294967296
+        uint64_t    age         : 28;   ///< age/origin-uid of the span, max 268435456
         uint64_t    szclass     : 16;   ///< size class index, max 65535
         uint64_t    arena       : 12;   ///< arena index, max 4096
         uint64_t    state       : 2;    ///< 0 clean -> 1 dirty -> 2 may not need -> 3 do not need
         uint64_t    is_slab     : 1;    ///< boolean flag indicating if span is a slab
-        uint64_t    is_dumpable : 1;    ///< boolean flag indicating if span can be dumped
+        uint64_t    is_alloc    : 1;
+        uint64_t    is_dumpable : 1;    // maybe remove?add do/dont forked, pin flags?
     } flags;
 
     struct
@@ -133,7 +134,7 @@ typedef struct span span_t;
 tsalloc_err_t
 span_create(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t            **dest,
     uint32_t           *epoch,
@@ -154,7 +155,7 @@ span_create(
 tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_config,
+    arena_cfg_t        *arena_config,
     objpool_t          *spanpool,
     span_t             *span
 );
@@ -174,7 +175,7 @@ span_destroy(
 tsalloc_err_t
 span_split(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t            **origin,
     span_t            **dest,
@@ -196,7 +197,7 @@ span_split(
 tsalloc_err_t
 span_coalesce(
     tsalloc_errctx_t   *error_ctx,
-    arena_conf_t       *arena_cfg,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *lspan,
     span_t             *rspan,
@@ -216,7 +217,7 @@ span_coalesce(
 tsalloc_err_t
 span_set_state(
     tsalloc_errctx_t       *error_ctx,
-    arena_conf_t           *arena_cfg,
+    arena_cfg_t            *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
 );

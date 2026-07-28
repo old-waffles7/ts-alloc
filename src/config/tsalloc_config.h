@@ -16,7 +16,7 @@ typedef uint16_t    tsalloc_szclass_t;
 */
 static inline bool
 tsalloc_is_slab_alloc(
-    const tsalloc_config_t *cfg,
+    const tsalloc_cfg_t    *cfg,
     size_t  nbytes
 ){
     return nbytes <= (cfg->slab_alloc_max);
@@ -27,7 +27,7 @@ tsalloc_is_slab_alloc(
 */
 static inline int32_t
 tsalloc_get_szclass(
-    const tsalloc_config_t *cfg,
+    const tsalloc_cfg_t    *cfg,
     size_t  nbytes
 ){
     if (nbytes == 0)
@@ -68,7 +68,7 @@ tsalloc_get_szclass(
 */
 static inline const tsalloc_slab_info_t*
 tsalloc_get_slabinfo(
-    const tsalloc_config_t *cfg,
+    const tsalloc_cfg_t    *cfg,
     tsalloc_szclass_t   szclass
 ){
     if (szclass >= (cfg->nszclasses_slab))
@@ -84,7 +84,7 @@ tsalloc_get_slabinfo(
 */
 static inline size_t
 tsalloc_szclass_span_size(
-    const tsalloc_config_t *cfg,
+    const tsalloc_cfg_t    *cfg,
     tsalloc_szclass_t   szclass
 ){
     if (szclass < (cfg->nszclasses_slab))

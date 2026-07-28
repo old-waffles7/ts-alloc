@@ -208,7 +208,7 @@ def write_global_file_header(f) -> None:
     f.write("\tconst tsalloc_slab_info_t*\tslab_infos;\n")
     f.write("\tconst uint32_t*\t\t\t\ttcache_info;\n")
     f.write("};\n")
-    f.write("typedef\tstruct tsalloc_config\ttsalloc_config_t;\n")
+    f.write("typedef\tstruct tsalloc_config\ttsalloc_cfg_t;\n")
     f.write("\n\n")
 
 def generate_config_c_block(
@@ -244,7 +244,7 @@ def generate_config_c_block(
     out += "    " + ", ".join(map(str, tcache_limits)) + "\n};\n\n"
 
     out += (
-        f"static const tsalloc_config_t\tconfig_{cfg.page_size}\t= {{\n"
+        f"static const tsalloc_cfg_t\tconfig_{cfg.page_size}\t= {{\n"
         f"\t.page_size              = {cfg.page_size},\n"
         f"\t.min_align              = {cfg.min_align},\n"
         f"\t.epoch                  = {cfg.epoch},\n"
