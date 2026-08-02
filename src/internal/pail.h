@@ -31,7 +31,6 @@ struct pail
 
     const tsalloc_slab_info_t  *init_info;
     registry_t          slabs;
-    objpool_t           slabpool;
     mutex_t             lock;
     tsalloc_szclass_t   szclass;
 };
@@ -48,24 +47,12 @@ _pail_mint_slab(
     tsalloc_err_t   ret;
 
     ret = scache_get_span(
+        pail->init_info,
         error_ctx, 
         arena_cfg, 
         spancache, 
         &slab, 
         pail->szclass
-    );
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    ret = slab_init(
-        pail->init_info, 
-        arena_cfg->tsalloc_cfg, 
-        error_ctx, 
-        &(pail->slabpool), 
-        slab
     );
     if (ret != TSALLOC_SUCCESS)
     {
@@ -141,19 +128,6 @@ pail_init(
 
     tsalloc_err_t   ret;
 
-    ret = objpool_init(
-        error_ctx, 
-        &(pail->slabpool), 
-        TSALLOC_DEFAULT_ARG, 
-        sizeof(slab_t), 
-        256
-    );
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
     ret = mutex_init(error_ctx, &(pail->lock));
     if (ret != TSALLOC_SUCCESS)
     {
@@ -174,7 +148,6 @@ pail_deinit(
 ){
     tsalloc_err_t   ret;
 
-    objpool_deinit(&(pail->slabpool));
     ret = mutex_deinit(error_ctx, &(pail->lock));
     if (ret != TSALLOC_SUCCESS)
     {

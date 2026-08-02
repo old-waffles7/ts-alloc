@@ -63,7 +63,7 @@ static inline span_t*
 bin_get_span(
     bin_t  *bin
 ){
-    uint8_t idx;
+    int16_t idx;
 
     idx = bin_first_nonempty_bucket(bin->bitmap);
     if (idx < 0)
@@ -74,6 +74,11 @@ bin_get_span(
     span_t *span;
 
     span    = bucket_pop(&(bin->buckets[idx]));
+    if (bin->buckets[idx].root == nullptr) 
+    {
+        bin->bitmap    &= ~(1 << idx);
+    }
+
     return span;
 }
 
@@ -101,6 +106,7 @@ bin_put_span(
         TSALLOC_SPAN_DIRTY
     );
     bucket_insert(&(bin->buckets[TSALLOC_SPAN_DIRTY]), span);
+    bin->bitmap    |= (1 << TSALLOC_SPAN_DIRTY);
 
     return TSALLOC_SUCCESS;
 }

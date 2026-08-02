@@ -13,6 +13,7 @@
 #include    "error.h"
 
 #include    "span.h"
+#include    "slab.h"
 #include    "pail.h"
 #include    "arenaconfig.h"
 

@@ -48,6 +48,9 @@ tsalloc_szclass_t   szclass;
 
 - remove nobjs per block argument from objpool_init
 
-- arena
+- use the mutex lock when getting and puttins spans in scache, add boolean isslab
+  to api for getting/putting it will initialie the slab meta there.
+
+- inline record in span objpool conditionally
 
 

@@ -1,6 +1,6 @@
 /*
  * @file    span.h
- * @brief   definitions of functionalities for managing memory spans and slabs
+ * @brief   definitions of functionalities for managing memory spans
  */
 
 
@@ -10,14 +10,15 @@
 
 
 #include    "common.h"
+#include    "error.h"
 
+#include    "slab.h"
 #include    "bucket.h"
 #include    "objpool.h"
+#include    "records.h"
 #include    "pagetrie.h"
 #include    "registry.h"
 #include    "arenaconfig.h"
-
-#include    <string.h>
 
 
 #define     SPAN_NSTATES    3
@@ -30,75 +31,6 @@ enum TSALLOC_SPAN_STATE : uint8_t
     TSALLOC_SPAN_RETAINED
 };
 typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
-
-
-/*
- * @struct  slab
- * @brief   metadata for a memory slab
- */
-struct slab
-{
-    byte_t     *bitmap;         ///< pointer to the bitmap tracking block allocation
-    uint16_t    nbytes_block;   ///< size of an individual block within the slab
-    uint16_t    nblocks_free;   ///< number of currently free blocks in the slab
-};
-typedef struct slab slab_t;
-
-/*
- * @brief   initializes a new memory slab
- *
- * @param   cfg         pointer to the allocator configuration
- * @param   slabinfo    pointer to the slab information/layout configuration
- * @param   error_ctx   pointer to the error context struct
- * @param   slabpool    pointer to the object pool used for slab metadata allocation
- * @param   span        pointer to the span being formatted as a slab
- *
- * @return  status code representing success or failure
- */
-tsalloc_err_t
-slab_init(
-    const tsalloc_slab_info_t  *slabinfo,
-    const tsalloc_cfg_t        *cfg,
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *slabpool,
-    span_t             *span
-);
-
-/*
- * @brief   deinitializes a memory slab and returns its metadata to the pool
- *
- * @param   slabpool    pointer to the object pool used for slab metadata
- * @param   span        pointer to the span formatted as a slab
- */
-void
-slab_deinit(
-    objpool_t  *slabpool,
-    span_t     *span
-);
-
-/*
- * @brief   retrieves a free block from a slab using its bitmap
- *
- * @param   span    pointer to the span containing the slab metadata and memory
- *
- * @return  pointer to the allocated block
- */
-byte_t*
-slab_get_block(
-    span_t *span
-);
-
-/*
- * @brief   frees a block back to a slab by clearing its bitmap entry
- *
- * @param   span    pointer to the span containing the slab metadata and memory
- * @param   block   pointer to the memory block being freed
- */
-void
-slab_put_block(
-    span_t *span,
-    void   *block
-);
 
 
 /*
@@ -115,18 +47,19 @@ struct span
         uint64_t    state       : 2;    ///< 0 clean -> 1 dirty -> 2 may not need -> 3 do not need
         uint64_t    is_slab     : 1;    ///< boolean flag indicating if span is a slab
         uint64_t    is_alloc    : 1;
-        uint64_t    is_dumpable : 1;    // maybe remove?add do/dont forked, pin flags?
+        uint64_t    is_dumpable : 1;    // !maybe remove?add do/dont forked, pin flags?
     } flags;
 
-    struct
+    union
     {
         bucket_coord_t      bucket;     ///< coordinates for bucket placement
         registry_coord_t    registry;   ///< coordinates for registry placement
     } coord;
     
-    byte_t *addr;                       ///< pointer to the base address of the span memory
-    slab_t *slab_metadata;              ///< pointer to slab metadata (if is_slab is set)
-    size_t  nbytes;                     ///< total size of the span in bytes
+    record_t   *record;
+    byte_t     *addr;               ///< pointer to the base address of the span memory
+    slab_t     *slab_metadata;      ///< pointer to slab metadata (if is_slab is set)
+    size_t      nbytes;             ///< total size of the span in bytes
 };
 typedef struct span span_t;
 
@@ -151,7 +84,8 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
-    size_t              _align
+    size_t              _align,
+    bool                init_record
 );
 
 /*
@@ -167,7 +101,7 @@ span_create(
 tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_config,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *span
 );
@@ -200,6 +134,7 @@ span_split(
  * @param   error_ctx   pointer to the error context struct
  * @param   arena_cfg   pointer to the arena configuration struct
  * @param   spanpool    pointer to the object pool for span metadata
+ * @param   records     pointer to the list that records all minted spans
  * @param   lspan       pointer to the left span (lower memory address)
  * @param   rspan       pointer to the right span (higher memory address)
  * @param   dest        double pointer to output the coalesced span
@@ -211,6 +146,7 @@ span_coalesce(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
+    records_t          *records,
     span_t             *lspan,
     span_t             *rspan,
     span_t            **dest

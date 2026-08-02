@@ -3,107 +3,10 @@
 #include    "internal/error.h"
 #include    "internal/span.h"
 
+#include    "internal/records.h"
 #include    "internal/objpool.h"
 #include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
-
-
-tsalloc_err_t
-slab_init(
-    const tsalloc_slab_info_t  *slabinfo,
-    const tsalloc_cfg_t        *cfg,
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *slabpool,
-    span_t             *span
-){
-    slab_t         *metadata;
-    tsalloc_err_t   ret;
-
-    ret = objpool_alloc(error_ctx, slabpool, ((void*)(&metadata)));
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    byte_t *bitmap;
-
-    bitmap      = ((byte_t*)metadata) + sizeof(slab_t);
-    *metadata   = (slab_t){
-        .bitmap         = bitmap,
-        .nbytes_block   = slabinfo->block_size,
-        .nblocks_free   = slabinfo->nblocks
-    };
-
-    span->flags.is_slab = true;
-    span->slab_metadata = metadata;
-
-    return TSALLOC_SUCCESS;
-}
-
-void
-slab_deinit(
-    objpool_t  *slabpool,
-    span_t     *span
-){
-    span->flags.is_slab = false;
-    objpool_free(slabpool, ((void*)(span->slab_metadata)));
-}
-
-byte_t*
-slab_get_block(
-    span_t *span
-){
-    slab_t     *slab;
-    byte_t     *base_mem;
-    uint64_t   *bitmap;
-    uint64_t    word_idx;
-    uint64_t    word;
-    uint64_t    bit_idx;
-    uint64_t    block_idx;
-
-    slab        = span->slab_metadata;       
-    base_mem    = span->addr;       
-    bitmap      = (uint64_t*)(slab->bitmap);
-    word_idx    = 0;
-
-    while ((word = bitmap[word_idx]) == ~0ULL)
-    {
-        word_idx++;
-    }
-
-    bit_idx     = __builtin_ctzll(~word);
-    block_idx   = (word_idx * 64) + bit_idx;
-
-    bitmap[word_idx] |= (1ULL << bit_idx);
-    slab->nblocks_free--;
-
-    return (byte_t*)(base_mem + (block_idx * slab->nbytes_block));
-}
-
-void
-slab_put_block(
-    span_t *span,
-    void   *block
-){
-    slab_t     *slab;
-    uint64_t   *bitmap;
-    uintptr_t   offset;
-    uint64_t    block_idx;
-    uint64_t    word_idx;
-    uint64_t    bit_idx;
-
-    slab        = span->slab_metadata;
-    bitmap      = (uint64_t*)(slab->bitmap);
-    offset      = (uintptr_t)block - (uintptr_t)(span->addr);
-
-    block_idx   = offset / slab->nbytes_block;
-    word_idx    = block_idx / 64;
-    bit_idx     = block_idx % 64;
-
-    bitmap[word_idx] &= ~(1ULL << bit_idx);
-    slab->nblocks_free++;
-}
 
 
 tsalloc_err_t
@@ -114,7 +17,8 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
-    size_t              _align
+    size_t              _align,
+    bool                init_record
 ){
     span_t         *span;
     tsalloc_err_t   ret;
@@ -147,11 +51,24 @@ span_create(
         return TSALLOC_AUXIL_MAP_ERR;
     }
 
+    record_t   *record;
+
+    if (init_record)
+    {
+        record  = (record_t*)(((byte_t*)span) + sizeof(span_t));
+        record_init(record, nbytes);
+    }
+    else 
+    {
+        record  = nullptr;
+    }
+
     *span   = (span_t){
         .flags.age      = *epoch,
         .flags.szclass  = szclass,
         .addr           = mem,
-        .nbytes         = nbytes
+        .nbytes         = nbytes,
+        .record         = record
     };
     *epoch += 1;
 
@@ -163,14 +80,14 @@ span_create(
 tsalloc_err_t
 span_destroy(
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_config,
+    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *span
 ){
     int ret;
 
-    ret = arena_config->auxil_unmap(
-        arena_config->extra,
+    ret = arena_cfg->auxil_unmap(
+        arena_cfg->extra,
         ((void*)(span->addr)),
         span->nbytes
     );
@@ -220,10 +137,7 @@ span_split(
     origin_nbytes   = ((*origin)->nbytes) - split_nbytes;
     if (origin_nbytes == 0) 
     {
-        split                       = *origin;
-        split->flags.is_slab        = false;
-        split->flags.is_dumpable    = false;
-
+        split   = *origin;
         *origin = nullptr;
         *dest   = split;
 
@@ -256,6 +170,7 @@ span_coalesce(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
+    records_t          *records,
     span_t             *lspan,
     span_t             *rspan,
     span_t            **dest
@@ -279,6 +194,23 @@ span_coalesce(
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS; 
+    }
+
+    if (rspan->record)
+    {
+        if (lspan->record)
+        {
+            lspan->record->nbytes += rspan->record->nbytes;
+        }
+        else
+        {
+            lspan->record   = (record_t*)(((byte_t*)lspan) + sizeof(span_t));
+            record_init(lspan->record, rspan->record->nbytes);
+            records_push(records, lspan);
+        }
+        
+        records_remove(records, rspan);
+        rspan->record   = nullptr;
     }
 
     size_t              nbytes;
@@ -308,10 +240,7 @@ span_set_state(
 ){
     size_t  nbytes;
 
-    nbytes  = tsalloc_szclass_span_size(
-        (arena_cfg->tsalloc_cfg), 
-        ((tsalloc_szclass_t)(span->flags.szclass))
-    );
+    nbytes  = span->nbytes;
     switch (state) 
     {
         case TSALLOC_SPAN_CLEAN:

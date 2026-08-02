@@ -5,7 +5,9 @@
 
 #include    "internal/bin.h"
 #include    "internal/span.h"
+#include    "internal/slab.h"
 #include    "internal/mutex.h"
+#include    "internal/records.h"
 #include    "internal/objpool.h"
 #include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
@@ -167,7 +169,8 @@ scache_mint_span(
         &span,
         &(cache->epoch),
         szclass, 
-        TSALLOC_DEFAULT_ARG
+        TSALLOC_DEFAULT_ARG,
+        true
     );
     if (ret != TSALLOC_SUCCESS)
     {
@@ -183,7 +186,7 @@ scache_mint_span(
         return ret;
     }
 
-    registry_push(&(cache->origins), span);
+    records_push(&(cache->origins), span);
 
     *dest   = span;
 
@@ -228,7 +231,21 @@ scache_init(
         error_ctx, 
         &(cache->spanpool), 
         0,                  // !later implement TSALLOCDEFAULTARG
-        sizeof(span_t), 
+        (arena_cfg->unmap_on_termination)? (sizeof(span_t) + sizeof(record_t)):sizeof(span_t),
+        64                  // !replace later with macro dependent on pagesize? maybe remove arg
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        mutex_deinit(error_ctx, &(cache->lock));
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    ret = objpool_init(
+        error_ctx, 
+        &(cache->slabpool), 
+        0,                  // !later implement TSALLOCDEFAULTARG
+        sizeof(slab_t), 
         64                  // !replace later with macro dependent on pagesize? maybe remove arg
     );
     if (ret != TSALLOC_SUCCESS)
@@ -247,7 +264,7 @@ scache_init(
     bitmap_bytes    = ((nclasses + 63) / 64) * 8;
 
     cache->bins     = (bin_t*)auxil_mem;
-    cache->origins  = (registry_t){0};
+    cache->origins  = (records_t){0};
     cache->epoch    = 0;
     cache->bitmap   = bitmap_addr;
     cache->nclasses = nclasses;
@@ -269,6 +286,60 @@ scache_deinit(
         append_tsalloc_error_trace(error_ctx);
         return ret;
     }
+    objpool_deinit(&(cache->spanpool));
+    objpool_deinit(&(cache->slabpool));
+
+    return TSALLOC_SUCCESS;
+}
+
+tsalloc_err_t
+scache_destroy(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *cache
+){
+    if (!arena_cfg->unmap_on_termination)
+        {
+            set_tsalloc_error(
+                error_ctx,
+                "scache_destroy::scache.c spans missing record instances",
+                TSALLOC_INVALID_ARGS
+            );
+            return TSALLOC_INVALID_ARGS;
+        }
+
+    tsalloc_err_t   ret;
+
+    ret = mutex_deinit(error_ctx, &(cache->lock));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    auxil_unmap_fn  unmap;
+    span_t         *span;
+    size_t          nbytes;
+    int             nfail_unmap;
+    
+    unmap       = arena_cfg->auxil_unmap;
+    nfail_unmap = 0;
+    while (!records_isempty(&(cache->origins)))
+    {
+        span    = records_pop(&(cache->origins));
+        nbytes  = span->record->nbytes;
+        if (unmap(arena_cfg->extra, ((void*)span->addr), nbytes))
+        {
+            set_tsalloc_error(
+                error_ctx,
+                "scache_destroy::scache.c unmap failure",
+                TSALLOC_INVALID_ARGS
+            );
+            nfail_unmap++;
+        }
+    }
+    objpool_deinit(&(cache->spanpool));
+    objpool_deinit(&(cache->slabpool));
 
     return TSALLOC_SUCCESS;
 }
@@ -278,8 +349,15 @@ scache_put_span(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
-    span_t             *span
+    span_t             *span,
+    bool                isslab
 ){
+    
+    if (isslab)
+    {
+        slab_deinit(&cache->slabpool, span);
+    }
+
     span_t             *lspan;
     span_t             *rspan;
     span_t             *_lspan;
@@ -288,6 +366,9 @@ scache_put_span(
 
     span->flags.is_alloc    = false;
     span_get_adj(&(cache->pagetrie), span, &lspan, &rspan);
+
+    mutex_lock(&(cache->lock));
+
     if (scache_can_merge(arena_cfg, span, lspan))
     {
         ret = scache_merge_and_update(
@@ -325,12 +406,14 @@ scache_put_span(
     }
 
     scache_set_bitmap(cache, szclass, true); 
+
+    mutex_unlock(&(cache->lock));
     
     return TSALLOC_SUCCESS;
 }
-
 tsalloc_err_t
 scache_get_span(
+    const tsalloc_slab_info_t  *slab_init_info,
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
@@ -341,6 +424,8 @@ scache_get_span(
     tsalloc_szclass_t   bin_szclass;
     tsalloc_err_t       ret;
     bool                isoverfit;
+
+    mutex_lock(&(cache->lock));
 
     isoverfit = scache_find_nonempty_bin_idx(cache, &bin_szclass, szclass);
     if (bin_szclass >= cache->nclasses)
@@ -371,22 +456,46 @@ scache_get_span(
         ret = span_split(error_ctx, arena_cfg, &(cache->spanpool), &span, &cut, szclass);
         if (ret != TSALLOC_SUCCESS)
         {
+            (void)scache_put_span(error_ctx, arena_cfg, cache, span, false);
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
 
-        ret = scache_put_span(error_ctx, arena_cfg, cache, span);
+        ret = scache_put_span(error_ctx, arena_cfg, cache, span, false);
         if (ret != TSALLOC_SUCCESS)
         {
+            span_t *_span;
+            if (span_coalesce(error_ctx, arena_cfg, &(cache->spanpool), span, cut, &_span) == TSALLOC_SUCCESS) 
+            {
+                (void)scache_put_span(error_ctx, arena_cfg, cache, _span, false);
+            }
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
         span = cut;
     }
 
+    if (slab_init_info)
+    {
+        ret = slab_init(
+            slab_init_info, 
+            error_ctx, 
+            &(cache->slabpool), 
+            span
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            (void)scache_put_span(error_ctx, arena_cfg, cache, span, false);
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+    }
+
+    mutex_unlock(&(cache->lock));
+
     span->flags.is_alloc    = true;
-    
-    *dest = span;
+    *dest                   = span;
 
     return TSALLOC_SUCCESS;
 }
+

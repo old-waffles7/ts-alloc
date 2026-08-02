@@ -12,4 +12,4 @@ gen_sll_func
     registry,
     span_t, 
     coord.registry
-)
+);

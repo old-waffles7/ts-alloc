@@ -16,6 +16,16 @@ bcache_init(
     byte_t             *auxil_mem,
     bcache_t           *cache
 ){
+    if (!auxil_mem)
+    {
+        set_tsalloc_error(
+            error_ctx,
+            "scache_init::scache.c nullptr axuil_mem argument",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS;
+    }
+    
     pail_t         *pails;
     size_t          nclasses;
     tsalloc_err_t   ret;

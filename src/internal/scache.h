@@ -16,7 +16,7 @@
 #include    "bin.h"
 #include    "span.h"
 #include    "mutex.h"
-#include    "registry.h"
+#include    "records.h"
 #include    "pagetrie.h"
 #include    "arenaconfig.h"
 
@@ -29,12 +29,13 @@ struct span_cache
 {
     bin_t      *bins;       ///< pointer to the array of bins
     byte_t     *bitmap;     ///< pointer to the bitmap tracking non-empty bins
-    registry_t  origins;    ///< linked-list for tracking origin span descriptors, facillitates explicit global destruction
     pagetrie_t  pagetrie;   ///< pagetrie for tracking span descriptors, facillitates coalescion
+    records_t   origins;    ///< linked-list for tracking origin span descriptors, facillitates explicit global destruction
     objpool_t   spanpool;   ///< object-pool for span descriptors
+    objpool_t   slabpool;   ///< object-pool for slab descriptors
     mutex_t     lock;       ///< mutex for thread-safe access
-    uint32_t    epoch;      ///< cache-global epoch for initializing ages of newly minteed spans
     size_t      nclasses;   ///< number of size classes managed by the cache
+    uint32_t    epoch;      ///< cache-global epoch for initializing ages of newly minteed spans
 };
 typedef struct span_cache   scache_t;
 
@@ -125,23 +126,26 @@ scache_put_span(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
-    span_t             *span
+    span_t             *span,
+    bool                isslab
 );
 
 /*
  * @brief   retrieves a span from the cache for a given size class
  *
- * @param   error_ctx   pointer to the error context struct
- * @param   arena_cfg   pointer to the arena configuration
- * @param   spanpool    pointer to the object pool used for span allocation
- * @param   cache       pointer to the target span cache
- * @param   dest        pointer to store the retrieved span
- * @param   szclass     size class index of the requested span
+ * @param   slab_init_info  pointer to info struct for slab initialization
+ * @param   error_ctx       pointer to the error context struct
+ * @param   arena_cfg       pointer to the arena configuration
+ * @param   spanpool        pointer to the object pool used for span allocation
+ * @param   cache           pointer to the target span cache
+ * @param   dest            pointer to store the retrieved span
+ * @param   szclass         size class index of the requested span
  *
  * @return  status code representing success or failure
  */
 tsalloc_err_t
 scache_get_span(
+    const tsalloc_slab_info_t  *slab_init_info,
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
