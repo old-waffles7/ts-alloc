@@ -62,18 +62,31 @@ class configuration:
 
     def get_slab_infos(
         self, 
-        sizes   : list
+        sizes: list
     ) -> list:
         infos = []
+        
+        min_blocks   = 4
+        target_bytes = self.page_size
+        
+        prev_nblocks = float('inf')
         
         for block_size in sizes:
             if block_size > self.nbytes_slab_alloc_max:
                 break
                 
-            slab_size   = (block_size * self.page_size) // math.gcd(block_size, self.page_size)
-            nblocks     = slab_size // block_size
+            target_n = max(min_blocks, target_bytes // block_size)
+            
+            req_bytes = target_n * block_size
+            slab_size = ((req_bytes + self.page_size - 1) // self.page_size) * self.page_size
+            
+            nblocks = slab_size // block_size
+            nblocks = min(nblocks, prev_nblocks)
             
             infos.append((block_size, slab_size, nblocks))
+            prev_nblocks = nblocks
+            
+        return infos
             
         return infos
 

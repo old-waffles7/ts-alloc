@@ -53,4 +53,5 @@ tsalloc_szclass_t   szclass;
 
 - inline record in span objpool conditionally
 
+- slab nblocks is broken in config script
 
