@@ -1,6 +1,6 @@
 /*
  * @file    mutex.h
- * @brief   posix thread mutex wrapper with adaptive spin support
+ * @brief   posix-sephamore backed mutex with adaptive spin support
  */
 
 
@@ -9,34 +9,46 @@
 #define MUTEX_H
 
 
-#include    <pthread.h>
 #include    "common.h"
 #include    "error.h"
 
+#include    <semaphore.h>
+#include    <stdatomic.h>
+#include    <pthread.h>
 
-/* architecture-specific CPU pause for adaptive spinning */
+
 #if defined(__x86_64__) || defined(__i386__)
-    #include    <immintrin.h>
-    #define     CPU_RELAX()     _mm_pause()
+    #include <immintrin.h>
+    #define CPU_RELAX() _mm_pause()
 #elif defined(__aarch64__) || defined(__arm__)
-    #define     CPU_RELAX()     __asm__ volatile("yield" ::: "memory")
+    #define CPU_RELAX() __asm__ volatile("yield" ::: "memory")
 #else
-    #define     CPU_RELAX()
+    #define CPU_RELAX() ((void)0)
 #endif
 
-#define     MAX_SPIN_COUNT  600
+#define MAX_SPIN_COUNT 600
+
+
+enum TSALLOC_MUTEX_STATE    : int
+{
+    FREE    = 0,
+    LOCKED,
+    LOCKED_WAITERS
+};
+typedef enum TSALLOC_MUTEX_STATE    tsalloc_mtx_state_t;
 
 
 /*
  * @struct  mutex
- * @brief   wrapper for pthread mutex primitive
+ * @brief   wrapper for posix-sephamore primitive
  */
-struct mutex
+struct mutex 
 {
-    pthread_mutex_t portable;
+    _Atomic(int)        state; 
+    _Atomic(pthread_t)  locker_tid; 
+    sem_t               waitq;
 };
-
-typedef struct mutex    mutex_t;
+typedef struct mutex mutex_t;
 
 
 /*
@@ -54,19 +66,18 @@ mutex_init(
 ){
     int ret;
 
-    ret = pthread_mutex_init(&(mutex->portable), nullptr);
+    ret = sem_init(&(mutex->waitq), false, 0);
     if (ret != 0)
     {
-        set_tsalloc_error
-        (
+        set_tsalloc_error(
             error_ctx,
-            "mutex_init()::mutex.h os mutex initialization error",
-            TSALLOC_OS_ERR,
-            ret
+            "mutex_init()::mutex.h os semaphore initialization error",
+            TSALLOC_OS_ERR
         );
-
         return TSALLOC_OS_ERR;
     }
+    atomic_store_explicit(&(mutex->state), FREE, memory_order_release); 
+    atomic_store_explicit(&(mutex->locker_tid), (pthread_t){0}, memory_order_release);  
 
     return TSALLOC_SUCCESS;
 }
@@ -79,27 +90,24 @@ mutex_init(
  * 
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline tsalloc_err_t 
 mutex_deinit(
-    tsalloc_errctx_t   *error_ctx,
+    tsalloc_errctx_t   *error_ctx, 
     mutex_t            *mutex
 ){
     int ret;
 
-    ret = pthread_mutex_destroy(&(mutex->portable));
+    ret = sem_destroy(&(mutex->waitq));
     if (ret != 0)
     {
-        set_tsalloc_error
-        (
+        set_tsalloc_error(
             error_ctx,
-            "mutex_deinit()::mutex.h os mutex destruction error",
-            TSALLOC_OS_ERR,
-            ret
+            "mutex_deinit()::mutex.h os semaphore destruction error",
+            TSALLOC_OS_ERR
         );
-
         return TSALLOC_OS_ERR;
     }
-    
+
     return TSALLOC_SUCCESS;
 }
 
@@ -112,19 +120,39 @@ static inline void
 mutex_lock(
     mutex_t    *mutex
 ){
+    int ret;
+    int exp;
+
     for (int i = 0; i < MAX_SPIN_COUNT; i++)
     {
-        int ret;
-
-        ret = pthread_mutex_trylock(&(mutex->portable));
-        if (ret == 0)
+        ret = atomic_load_explicit(&(mutex->state), memory_order_relaxed);
+        if (ret == FREE)
         {
-            return;
+            exp = FREE;
+            ret = atomic_compare_exchange_weak_explicit(
+                &(mutex->state),
+                &exp,
+                LOCKED,
+                memory_order_acquire,
+                memory_order_relaxed
+            );
+            if (ret == true)
+            {
+                atomic_store_explicit(&(mutex->locker_tid), pthread_self(), memory_order_release);
+                return;
+            }
         }
         CPU_RELAX();
     }
+    
+    ret = atomic_exchange_explicit(&(mutex->state), LOCKED_WAITERS, memory_order_acquire);
+    while (ret != FREE)
+    {
+        sem_wait(&(mutex->waitq));
+        ret = atomic_exchange_explicit(&(mutex->state), LOCKED_WAITERS, memory_order_acquire);
+    }
 
-    pthread_mutex_lock(&(mutex->portable));
+    atomic_store_explicit(&(mutex->locker_tid), pthread_self(), memory_order_release); 
 }
 
 /*
@@ -136,7 +164,24 @@ static inline void
 mutex_unlock(
     mutex_t    *mutex
 ){
-    pthread_mutex_unlock(&(mutex->portable));
+    pthread_t   locker_tid; 
+    pthread_t   self_tid; 
+    int         ret;
+
+    locker_tid  = atomic_load_explicit(&(mutex->locker_tid), memory_order_acquire);
+    self_tid    = pthread_self();
+    if (!pthread_equal(self_tid, locker_tid))
+    { 
+        return;
+    }
+
+    ret = atomic_exchange_explicit(&(mutex->state), FREE, memory_order_release);
+    if (ret == LOCKED_WAITERS)
+    {
+        sem_post(&(mutex->waitq));
+    }
+
+    atomic_store_explicit(&(mutex->locker_tid), (pthread_t){0}, memory_order_release); 
 }
 
 
