@@ -64,13 +64,17 @@ _set_tsalloc_error(
         return;
     }
 
-    *ctx = (tsalloc_errctx_t) {
-        .orig_filename  = orig_filename,
-        .message        = message,
-        .os_error_code  = os_error_code,
-        .orig_line      = orig_line,
-        .error_code     = tsalloc_error_code
-    };
+    ctx->orig_filename  = orig_filename;
+    ctx->message        = message;
+    ctx->os_error_code  = os_error_code;
+    ctx->orig_line      = orig_line;
+    ctx->error_code     = tsalloc_error_code;
+
+    #ifdef OPT_TRACE_ERRORS
+    {    
+        ctx->trace[0] = '\0';
+    }
+    #endif
 }
 
 
