@@ -12,10 +12,21 @@
 typedef struct span span_t;
 
 //  forward declaration suffices for structure definitions
-gen_sll_struct(registry, span_t);
-typedef sll(registry)       registry_t;
-typedef sll_coord(registry) registry_coord_t;
+gen_dll_struct(registry, span_t);
+typedef dll(registry)       registry_t;
+typedef dll_coord(registry) registry_coord_t;
 
+
+
+
+
+
+static inline void
+registry_init(
+    registry_t *registry
+){
+    *registry   = (registry_t){0};
+}
 
 static inline bool
 registry_isempty(
@@ -33,6 +44,12 @@ registry_push(
 span_t*
 registry_pop(
     registry_t *registry
+);
+
+void
+registry_remove(
+    registry_t *registry, 
+    span_t     *span
 );
 
 

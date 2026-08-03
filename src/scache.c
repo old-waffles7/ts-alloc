@@ -475,6 +475,16 @@ scache_get_span(
             return ret;
         }
 
+        ret = pagetrie_insert(error_ctx, &(cache->pagetrie), cut->addr, cut, cut->nbytes);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, span, false);
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, cut, false);
+            append_tsalloc_error_trace(error_ctx);
+            mutex_unlock(&(cache->lock));
+            return ret;
+        }
+
         ret = _scache_put_span(error_ctx, arena_cfg, cache, span, false); 
         if (ret != TSALLOC_SUCCESS)
         {

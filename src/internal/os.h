@@ -11,11 +11,12 @@
 #define OS_H
 
 
+#include    "common.h"
+
+#include    <stdatomic.h>
 #include    <sys/mman.h>
 #include    <unistd.h>
 #include    <errno.h>
-
-#include    "common.h"
 
 
 /**
@@ -30,14 +31,14 @@
 static inline uint64_t
 sys_page_size(void)
 {
-    static uint64_t cached_page_size = 0;
+    static _Atomic uint64_t cached_page_size    = 0;
 
     if (cached_page_size == 0)
     {
-        cached_page_size = sysconf(_SC_PAGESIZE);
+        atomic_store(&cached_page_size, sysconf(_SC_PAGESIZE));
     }
 
-    return cached_page_size;
+    return atomic_load(&cached_page_size);
 }
 
 /*
@@ -109,6 +110,7 @@ sys_aligned_map(
     uint8_t    *raw_mem;
     size_t      nbytes_req;
     
+    nbytes      = ALIGN_UP(nbytes, sys_page_size());
     nbytes_req  = nbytes + align - sys_page_size();
     raw_mem     = (uint8_t*)mmap
     (
@@ -167,7 +169,7 @@ sys_unmap(
 ){
     if (!ptr)
     {
-        return 0;
+        return -1;
     }
     return munmap(ptr, nbytes);
 }
