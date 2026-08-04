@@ -37,18 +37,8 @@ tsalloc_szclass_t   szclass;
 
 - in config.py make it so if > uint16 num of classes failure
 
-- implement portable alternative to __builtin_clzll
+- implement portable fallaback to __builtin_clzll??
 
-- remove max alloc argument in config.py, replace it with largest szclass
-
-- can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory
-  to make it undumpable
-
-- use the mutex lock when getting and puttins spans in scache, add boolean isslab
-  to api for getting/putting it will initialie the slab meta there.
-
-- inline record in span objpool conditionally
+- can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory to make it undumpable
 
 - rememebr add -fno-strict-aliasing to cmake bc of the casting
-
-- remove atomic operations from pagetrie? are these redundant?

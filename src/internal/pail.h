@@ -145,7 +145,7 @@ _pail_put_block(
     }
     else if (slab->slab_metadata->nblocks_free == 1)
     {
-        pail_put_slab(pail, slab);
+        registry_push(&(pail->slabs), slab);
     }
 
     return TSALLOC_SUCCESS;
@@ -214,6 +214,8 @@ pail_get_batch(
 ){
     tsalloc_err_t   ret;
 
+    mutex_lock(&(pail->lock));
+    
     for (int i = 0; i < nblocks; i++)
     {
         ret = _pail_get_block(
@@ -234,20 +236,40 @@ pail_get_batch(
                     dest[j]
                 );
             }
+            mutex_unlock(&(pail->lock));
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
     }
+    
+    mutex_unlock(&(pail->lock));
 
     return TSALLOC_SUCCESS;
 }
 
-static inline void
-pail_put_slab(
-    pail_t *pail,
-    span_t *slab
+static inline tsalloc_err_t
+pail_put_block(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *spancache,
+    pail_t             *pail,
+    byte_t             *block
 ){
-    registry_push(&(pail->slabs), slab);
+    tsalloc_err_t   ret;
+    
+    mutex_lock(&(pail->lock));
+
+    ret = _pail_put_block(
+                    error_ctx, 
+                    arena_cfg, 
+                    spancache, 
+                    pail, 
+                    block
+                );
+    
+    mutex_unlock(&(pail->lock));
+
+    return ret;
 }
 
 

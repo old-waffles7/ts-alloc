@@ -332,3 +332,19 @@ mutex_unlock(
 
 #endif  //MUTEX_H
 
+
+for (uint16_t i = 0; i < nclasses; i++)
+{
+    ret = pail_init(error_ctx, arena_cfg, &(pails[i]), i);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        //  rolllback?
+        for (uint16_t j = 0; j < i; j++) 
+        {
+            pail_deinit(error_ctx, &(pails[j]));
+        }
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+}
+

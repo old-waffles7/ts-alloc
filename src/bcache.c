@@ -34,19 +34,19 @@ bcache_init(
     nclasses    = arena_cfg->tsalloc_cfg->nszclasses_slab;
     for (uint16_t i = 0; i < nclasses; i++)
     {
-        ret = pail_init(
-            error_ctx, 
-            arena_cfg, 
-            &(pails[i]), 
-            i
-        );
+        ret = pail_init(error_ctx, arena_cfg, &(pails[i]), i);
         if (ret != TSALLOC_SUCCESS)
         {
+            for (uint16_t j = 0; j < i; j++) 
+            {
+                (void)pail_deinit(error_ctx, &(pails[j]));
+            }
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
     }
 
+    cache->pails    = pails;
     cache->macro    = macro;
     cache->nclasses = nclasses;
 
@@ -73,7 +73,7 @@ bcache_deinit(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+tsalloc_err_t 
 bcache_put_block(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
@@ -81,23 +81,29 @@ bcache_put_block(
     byte_t             *block
 ){
     span_t *slab;
-
-    slab    = scache_mapto_span(cache->macro, ((void*)block));
+    
+    slab = scache_mapto_span(cache->macro, ((void*)block));
     if (!slab)
     {
         set_tsalloc_error(
             error_ctx,
-            "bcache_put_block::bache.c block not allocated from cache",
+            "bcache_put_block::bache.c block not allocated from this cache",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
     }
 
-    if (slab->slab_metadata->nblocks_free == 0)
-    {
-        pail_put_slab(&(cache->pails[slab->flags.szclass]), slab);
-    }
-    slab_put_block(slab, ((void*)block));
-
-    return TSALLOC_SUCCESS;
+    pail_t         *pail;
+    tsalloc_err_t   ret;
+    
+    pail    = &(cache->pails[slab->flags.szclass]);
+    ret     = pail_put_block(
+                error_ctx, 
+                arena_cfg, 
+                cache->macro, 
+                pail, 
+                block
+            );
+    
+    return ret;
 }
