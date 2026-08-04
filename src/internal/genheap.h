@@ -86,7 +86,7 @@
                                                                                                     \
     _attr _type*                                                                                    \
     _prefix##_pop(                                                                                  \
-        heap(_prefix)  *heap                                                                 \
+        heap(_prefix)  *heap                                                                        \
     )                                                                                               \
     {                                                                                               \
         _type  *root;                                                                               \
@@ -103,7 +103,7 @@
         if (!curr)                                                                                  \
         {                                                                                           \
             heap->root          = nullptr;                                                          \
-            root->_coord_field  = (heap_coord(_prefix)){0};                                           \
+            root->_coord_field  = (heap_coord(_prefix)){0};                                         \
             return root;                                                                            \
         }                                                                                           \
         tail    = nullptr;                                                                          \
@@ -143,15 +143,24 @@
         while (tail && tail->_coord_field.prev)                                                     \
         {                                                                                           \
             _type  *prev;                                                                           \
+            _type  *prev_prev;                                                                      \
                                                                                                     \
             prev                    = tail->_coord_field.prev;                                      \
+            prev_prev               = prev->_coord_field.prev;                                      \
+                                                                                                    \
             tail->_coord_field.prev = nullptr;                                                      \
             prev->_coord_field.next = nullptr;                                                      \
+                                                                                                    \
             tail                    = _prefix##_merge(prev, tail);                                  \
+                                                                                                    \
+            tail->_coord_field.prev = prev_prev;                                                    \
+            if (prev_prev) {                                                                        \
+                prev_prev->_coord_field.next = tail;                                                \
+            }                                                                                       \
         }                                                                                           \
                                                                                                     \
         heap->root          = tail;                                                                 \
-        root->_coord_field  = (heap_coord(_prefix)){0};                                               \
+        root->_coord_field  = (heap_coord(_prefix)){0};                                             \
                                                                                                     \
         return root;                                                                                \
     }
@@ -173,8 +182,8 @@
                                                                                                     \
     _attr void                                                                                      \
     _prefix##_insert(                                                                               \
-        heap(_prefix)  *heap,                                                               \
-        _type          *node                                                                \
+        heap(_prefix)  *heap,                                                                       \
+        _type          *node                                                                        \
     )                                                                                               \
     {                                                                                               \
         if (!node)                                                                                  \
@@ -182,7 +191,7 @@
             return;                                                                                 \
         }                                                                                           \
                                                                                                     \
-        node->_coord_field  = (heap_coord(_prefix)){0};                                               \
+        node->_coord_field  = (heap_coord(_prefix)){0};                                             \
         heap->root          = _prefix##_merge(heap->root, node);                                    \
     }
 
@@ -203,8 +212,8 @@
                                                                                                     \
     _attr void                                                                                      \
     _prefix##_remove(                                                                               \
-        heap(_prefix)  *heap,                                                               \
-        _type          *node                                                                \
+        heap(_prefix)  *heap,                                                                       \
+        _type          *node                                                                        \
     )                                                                                               \
     {                                                                                               \
         if (!node)                                                                                  \
@@ -224,7 +233,7 @@
         }                                                                                           \
         else                                                                                        \
         {                                                                                           \
-            node->_coord_field.prev->_coord_field.next  = node->_coord_field.next;      \
+            node->_coord_field.prev->_coord_field.next  = node->_coord_field.next;                  \
         }                                                                                           \
                                                                                                     \
         if (node->_coord_field.next)                                                                \
@@ -239,7 +248,7 @@
                                                                                                     \
         heap->root  = _prefix##_merge(heap->root, temp_heap.root);                                  \
                                                                                                     \
-        node->_coord_field  = (heap_coord(_prefix)){0};                                               \
+        node->_coord_field  = (heap_coord(_prefix)){0};                                             \
     }
 
 
@@ -256,7 +265,7 @@
         _type                   \
     )                           \
                                 \
-    struct _prefix##_heap      \
+    struct _prefix##_heap       \
     {                           \
         _type  *root;           \
     };                          \

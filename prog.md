@@ -44,8 +44,6 @@ tsalloc_szclass_t   szclass;
 - can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory
   to make it undumpable
 
-- scahce dirty -> clean -> retained
-
 - remove nobjs per block argument from objpool_init
 
 - use the mutex lock when getting and puttins spans in scache, add boolean isslab
@@ -53,5 +51,4 @@ tsalloc_szclass_t   szclass;
 
 - inline record in span objpool conditionally
 
-- slab nblocks is broken in config script
-
+- rememebr add -fno-strict-aliasing to cmake bc of the casting

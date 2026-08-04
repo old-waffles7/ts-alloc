@@ -87,7 +87,7 @@ objpool_alloc(
  * @param   objpool     pointer to the object pool
  * @param   ptr         pointer to the memory to free
  */
-inline void
+static inline void
 objpool_free(
     objpool_t  *objpool,
     void       *ptr
