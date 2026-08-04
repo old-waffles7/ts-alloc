@@ -17,10 +17,6 @@ typedef dll(registry)       registry_t;
 typedef dll_coord(registry) registry_coord_t;
 
 
-
-
-
-
 static inline void
 registry_init(
     registry_t *registry

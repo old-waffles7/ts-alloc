@@ -14,6 +14,8 @@
 
 #include    "common.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "os.h"
 
 #include    <sys/mman.h>
@@ -40,22 +42,19 @@ enum TSALLOC_ADVISE_FLAG    : uint8_t
 typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
 
 
-typedef void*   
-(*auxil_map_fn)(
+typedef void* (*auxil_map_fn)(
     void   *extra,
     size_t  align,
     size_t  nbytes
 );
 
-typedef int   
-(*auxil_unmap_fn)(
+typedef int (*auxil_unmap_fn)(
     void   *extra,
     void   *addr,
     size_t  nbytes
 );
 
-typedef int  
-(*auxil_madvise_fn)(
+typedef int (*auxil_madvise_fn)(
     void               *extra,
     void               *addr,
     size_t              nbytes,
@@ -150,7 +149,7 @@ def_auxil_map(
         return sys_map(nbytes);
     }
 
-    return sys_aligned_map(nbytes, align);
+    return sys_aligned_map(align, nbytes);
 }
 
 /**
