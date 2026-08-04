@@ -29,6 +29,7 @@ struct slab
     byte_t     *bitmap;         ///< pointer to the bitmap tracking block allocation
     uint16_t    nbytes_block;   ///< size of an individual block within the slab
     uint16_t    nblocks_free;   ///< number of currently free blocks in the slab
+    byte_t      _padding[4];
 };
 typedef struct slab slab_t;
 

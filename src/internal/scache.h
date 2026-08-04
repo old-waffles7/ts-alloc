@@ -55,7 +55,7 @@ scache_auxil_mem_size(
 
     nclasses    = (arena_cfg->tsalloc_cfg->nszclasses);
     nbytes      = sizeof(bin_t) * nclasses;
-    nbytes     += ((nclasses + 63) / 64) * 8;
+    nbytes     += 8 + ((nclasses + 63) / 64) * 8;
 
     return nbytes;
 }

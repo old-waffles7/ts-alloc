@@ -108,18 +108,18 @@ span_destroy(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
-span_split(
+tsalloc_err_t span_split(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t            **origin,
     span_t            **dest,
     tsalloc_szclass_t   szclass
-){
+) {
     size_t  split_nbytes;
-
+    
     split_nbytes    = tsalloc_szclass_span_size((arena_cfg->tsalloc_cfg), szclass);
+
     if (((*origin)->nbytes) < split_nbytes)
     {
         set_tsalloc_error(
@@ -139,7 +139,6 @@ span_split(
         split   = *origin;
         *origin = nullptr;
         *dest   = split;
-
         return TSALLOC_SUCCESS;
     }
     
@@ -156,8 +155,11 @@ span_split(
     split->flags    = (*origin)->flags;
     split->addr     = ((*origin)->addr) + origin_nbytes;
     split->nbytes   = split_nbytes;
-
+    
     (*origin)->nbytes   = origin_nbytes;
+    
+    split->flags.szclass        = szclass;
+    (*origin)->flags.szclass    = tsalloc_get_szclass((arena_cfg->tsalloc_cfg), origin_nbytes);
     
     *dest   = split;
 

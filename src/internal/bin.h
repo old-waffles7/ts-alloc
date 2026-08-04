@@ -111,5 +111,20 @@ bin_put_span(
     return TSALLOC_SUCCESS;
 }
 
+static inline void
+bin_remove_span(
+    bin_t  *bin,
+    span_t *span
+){
+    tsalloc_span_state_t    state;
+
+    state   = (tsalloc_span_state_t)span->flags.state;
+    bucket_remove(&(bin->buckets[state]), span);
+    if (bin->buckets[state].root == nullptr) 
+    {
+        bin->bitmap    &= ~(1 << state);
+    }
+}
+
 
 #endif  //BIN_H
