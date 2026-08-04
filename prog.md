@@ -44,8 +44,6 @@ tsalloc_szclass_t   szclass;
 - can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory
   to make it undumpable
 
-- remove nobjs per block argument from objpool_init
-
 - use the mutex lock when getting and puttins spans in scache, add boolean isslab
   to api for getting/putting it will initialie the slab meta there.
 

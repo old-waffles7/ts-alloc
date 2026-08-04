@@ -17,8 +17,7 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
-    size_t              _align,
-    bool                init_record
+    size_t              _align
 ){
     span_t         *span;
     tsalloc_err_t   ret;
@@ -53,7 +52,7 @@ span_create(
 
     record_t   *record;
 
-    if (init_record)
+    if (arena_cfg->unmap_on_termination)
     {
         record  = (record_t*)(((byte_t*)span) + sizeof(span_t));
         record_init(record, nbytes);
@@ -165,8 +164,7 @@ span_split(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
-span_coalesce(
+tsalloc_err_t span_coalesce(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
@@ -174,7 +172,7 @@ span_coalesce(
     span_t             *lspan,
     span_t             *rspan,
     span_t            **dest
-){
+) {
     if (!lspan)
     {
         *dest   = rspan;
@@ -196,21 +194,24 @@ span_coalesce(
         return TSALLOC_INVALID_ARGS; 
     }
 
-    if (rspan->record)
+    if (arena_cfg->unmap_on_termination) 
     {
-        if (lspan->record)
+        if (rspan->record)
         {
-            lspan->record->nbytes += rspan->record->nbytes;
+            if (lspan->record)
+            {
+                lspan->record->nbytes += rspan->record->nbytes;
+            }
+            else
+            {
+                lspan->record   = (record_t*)(((byte_t*)lspan) + sizeof(span_t));
+                record_init(lspan->record, rspan->record->nbytes);
+                records_push(records, lspan);
+            }
+            
+            records_remove(records, rspan);
+            rspan->record   = nullptr;
         }
-        else
-        {
-            lspan->record   = (record_t*)(((byte_t*)lspan) + sizeof(span_t));
-            record_init(lspan->record, rspan->record->nbytes);
-            records_push(records, lspan);
-        }
-        
-        records_remove(records, rspan);
-        rspan->record   = nullptr;
     }
 
     size_t              nbytes;
@@ -227,7 +228,6 @@ span_coalesce(
     objpool_free(spanpool, ((void*)rspan));
 
     *dest = lspan;
-
     return TSALLOC_SUCCESS;
 }
 
@@ -254,21 +254,24 @@ span_set_state(
         
         case TSALLOC_SPAN_RETAINED:
         {
-            int ret;
-            ret = arena_cfg->auxil_madvise(
-                (arena_cfg->extra),
-                ((void*)(span->addr)),
-                nbytes,
-                TSALLOC_ADVISE_RETAIN
-            );
-            if (ret != 0)
+            if (arena_cfg->auxil_madvise) 
             {
-                set_tsalloc_error(
-                    error_ctx,
-                    "span_set_state::span.h auxilliary madvise error",
-                    TSALLOC_AUXIL_MADVISE_ERR
+                int ret;
+                ret = arena_cfg->auxil_madvise(
+                    (arena_cfg->extra),
+                    ((void*)(span->addr)),
+                    nbytes,
+                    TSALLOC_ADVISE_RETAIN
                 );
-                return TSALLOC_AUXIL_MADVISE_ERR;
+                if (ret != 0)
+                {
+                    set_tsalloc_error(
+                        error_ctx,
+                        "span_set_state::span.h auxilliary madvise error",
+                        TSALLOC_AUXIL_MADVISE_ERR
+                    );
+                    return TSALLOC_AUXIL_MADVISE_ERR;
+                }
             }
             span->flags.state   = TSALLOC_SPAN_RETAINED;
             break;
@@ -297,7 +300,7 @@ span_get_adj(
     void *r_addr;
 
     l_addr = (void*)(((uintptr_t)span->addr) - 1);
-    r_addr = (void*)(((uintptr_t)span->addr) + span->nbytes + 1);
+    r_addr = (void*)(((uintptr_t)span->addr) + span->nbytes);
 
     *dest_lspan = (span_t*)pagetrie_lookup(pagetrie, l_addr);
     *dest_rspan = (span_t*)pagetrie_lookup(pagetrie, r_addr);

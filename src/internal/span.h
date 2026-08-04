@@ -85,8 +85,7 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
-    size_t              _align,
-    bool                init_record
+    size_t              _align
 );
 
 /*
