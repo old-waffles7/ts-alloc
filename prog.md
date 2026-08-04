@@ -50,3 +50,5 @@ tsalloc_szclass_t   szclass;
 - inline record in span objpool conditionally
 
 - rememebr add -fno-strict-aliasing to cmake bc of the casting
+
+- remove atomic operations from pagetrie? are these redundant?

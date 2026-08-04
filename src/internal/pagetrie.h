@@ -21,7 +21,6 @@
 struct pagetrie
 {
     void       *root;       ///< pointer to the level 1 root node
-    mutex_t     lock;       ///< mutex for locking trie on interior node creation
     objpool_t   nodepool;   ///< object pool for allocating interior and leaf nodes
 };
 

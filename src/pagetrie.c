@@ -32,13 +32,6 @@ pagetrie_init(
 ){
     tsalloc_err_t   ret;
 
-    ret = mutex_init(error_ctx, &(pagetrie->lock));
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
     ret = objpool_init
     (
         error_ctx,
@@ -50,7 +43,6 @@ pagetrie_init(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(error_ctx);
-        mutex_deinit(error_ctx, &(pagetrie->lock));
         return ret;
     }
 
@@ -61,7 +53,6 @@ pagetrie_init(
     {
         append_tsalloc_error_trace(error_ctx);
         objpool_deinit(&(pagetrie->nodepool));
-        mutex_deinit(error_ctx, &(pagetrie->lock));
         return ret;
     }
     memset(root, 0, sizeof(node_t));
@@ -100,7 +91,6 @@ pagetrie_insert(
     last_page   = (((uintptr_t)key) + nbytes - 1) >> MIN_PAGE_SHIFT;   
     root        = ((node_t*)pagetrie->root);
     
-    mutex_lock(&pagetrie->lock);
 
     for (uintptr_t page_addr = start_page; page_addr <= last_page; page_addr++)
     {
@@ -121,7 +111,6 @@ pagetrie_insert(
             ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
             if (ret != TSALLOC_SUCCESS)
             {
-                mutex_unlock(&pagetrie->lock);
                 append_tsalloc_error_trace(error_ctx);
                 return ret;
             }
@@ -137,7 +126,6 @@ pagetrie_insert(
             ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
             if (ret != TSALLOC_SUCCESS)
             {
-                mutex_unlock(&pagetrie->lock); 
                 append_tsalloc_error_trace(error_ctx);
                 return ret;
             }
@@ -149,8 +137,6 @@ pagetrie_insert(
         
         atomic_store_explicit(&node2->data[idx3], data, memory_order_release); 
     }
-
-    mutex_unlock(&pagetrie->lock);
 
     return TSALLOC_SUCCESS;
 }
