@@ -48,6 +48,7 @@ struct span
         uint64_t    is_slab     : 1;    ///< boolean flag indicating if span is a slab
         uint64_t    is_alloc    : 1;
         uint64_t    is_dumpable : 1;    // !maybe remove?add do/dont forked, pin flags?
+        uint64_t    reserved    : 3;
     } flags;
 
     union

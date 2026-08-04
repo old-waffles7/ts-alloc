@@ -36,6 +36,13 @@ struct pail
 };
 typedef struct pail pail_t;
 
+static inline void
+pail_put_slab(
+    pail_t *pail,
+    span_t *slab
+);
+
+
 static tsalloc_err_t
 _pail_mint_slab(
     tsalloc_errctx_t   *error_ctx,
@@ -102,6 +109,44 @@ _pail_get_block(
     }
 
     *dest   = block;
+
+    return TSALLOC_SUCCESS;
+}
+
+static inline tsalloc_err_t
+_pail_put_block(
+     tsalloc_errctx_t  *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *spancache,
+    pail_t             *pail,
+    byte_t             *block
+){
+    span_t         *slab;
+    tsalloc_err_t   ret;
+
+    slab    = scache_mapto_span(spancache, ((void*)block));
+    slab_put_block(slab, block);
+    
+    if (slab->slab_metadata->nblocks_free == pail->init_info->nblocks)
+    {
+        registry_remove(&(pail->slabs), slab);
+        ret = scache_put_span(
+            error_ctx, 
+            arena_cfg, 
+            spancache, 
+            slab, 
+            true
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+    }
+    else if (slab->slab_metadata->nblocks_free == 1)
+    {
+        pail_put_slab(pail, slab);
+    }
 
     return TSALLOC_SUCCESS;
 }
@@ -178,8 +223,17 @@ pail_get_batch(
             pail, 
             &(dest[i])
         );
-        if (ret != TSALLOC_SUCCESS)
-        {
+        if (ret != TSALLOC_SUCCESS) {
+            for (int j = 0; j < i; j++) 
+            {
+                (void)_pail_put_block(
+                    error_ctx, 
+                    arena_cfg, 
+                    spancache, 
+                    pail, 
+                    dest[j]
+                );
+            }
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }

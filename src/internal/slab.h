@@ -12,6 +12,8 @@
 #include    "common.h"
 #include    "error.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "objpool.h"
 
 
