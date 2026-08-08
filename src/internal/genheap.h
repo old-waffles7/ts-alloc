@@ -67,7 +67,7 @@
         _root->_coord_field.next            = nullptr;                                              \
                                                                                                     \
         return _root;                                                                               \
-    }
+    }                                                                                            
 
 /**
  * @brief   generates the pop function to extract the root node
@@ -251,6 +251,28 @@
         node->_coord_field  = (heap_coord(_prefix)){0};                                             \
     }
 
+/**
+ * @brief   generates the isempty function to indicate if the heap is empty
+ * 
+ * @param   _attr         function attributes
+ * @param   _prefix       prefix used for the generated function name
+ * @param   _type         the data type of the heap node
+ * @param   _coord_field  name of the heap_coord struct member within _type
+ */
+#define _GEN_HEAP_ISEMPTY(                                                                          \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                                                                                               \
+    _attr bool                                                                                     \
+    _prefix##_isempty(                                                                              \
+        heap(_prefix)  *heap                                                                        \
+    )                                                                                               \
+    {                                                                                               \
+        return heap->root;                                                                          \
+    }   
+
 
 /**
  * @brief   defines pairing-heap and pairing-heap coord structures
@@ -324,7 +346,14 @@
         _prefix,                                                                                    \
         _type,                                                                                      \
         _coord_field                                                                                \
-    )
+    )                                                                                               \
+                                                                                                    \
+    _GEN_HEAP_ISEMPTY(                                                                              \
+        _attr,                                                                                      \
+        _prefix,                                                                                    \
+        _type,                                                                                      \
+        _coord_field                                                                                \
+    )                
 
 #define heap(_prefix)           \
     struct _prefix##_heap 
