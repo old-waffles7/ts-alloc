@@ -28,6 +28,8 @@ struct bin
 
     bucket_t            buckets[SPAN_NSTATES];
     tsalloc_szclass_t   szclass;
+    uint32_t            nspans;
+    uint32_t            epoch_min_nspans;
     byte_t              bitmap; // bit length >= SPAN_NSTATES
 };
 typedef struct bin  bin_t;
@@ -79,6 +81,12 @@ bin_get_span(
         bin->bitmap    &= ~(1 << idx);
     }
 
+    bin->nspans--;
+    if (bin->epoch_min_nspans > bin->nspans)
+    {
+        bin->epoch_min_nspans   = bin->nspans;
+    }
+
     return span;
 }
 
@@ -99,14 +107,30 @@ bin_put_span(
         return TSALLOC_INVALID_ARGS;
     }
 
-    span_set_state(
-        error_ctx,
-        arena_cfg,
-        span,
-        TSALLOC_SPAN_DIRTY
-    );
-    bucket_insert(&(bin->buckets[TSALLOC_SPAN_DIRTY]), span);
-    bin->bitmap    |= (1 << TSALLOC_SPAN_DIRTY);
+    if (span->flags.state == TSALLOC_SPAN_RETAINED)
+    {
+        bucket_insert(&(bin->buckets[TSALLOC_SPAN_RETAINED]), span);
+        bin->bitmap    |= (1 << TSALLOC_SPAN_RETAINED);
+    }
+    else 
+    {
+        tsalloc_err_t   ret;
+
+        ret = span_set_state(
+            error_ctx,
+            arena_cfg,
+            span,
+            TSALLOC_SPAN_DIRTY
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+        bucket_insert(&(bin->buckets[TSALLOC_SPAN_DIRTY]), span);
+        bin->bitmap    |= (1 << TSALLOC_SPAN_DIRTY);
+    }
+    bin->nspans++;
 
     return TSALLOC_SUCCESS;
 }
@@ -124,6 +148,68 @@ bin_remove_span(
     {
         bin->bitmap    &= ~(1 << state);
     }
+}
+static inline tsalloc_err_t
+bin_decay(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    bin_t              *bin
+){
+    if (!arena_cfg->auxil_madvise)
+    {
+        return TSALLOC_SUCCESS;
+    }
+
+    span_t             *span;
+    auxil_madvise_fn    auxil_madvise;
+    tsalloc_err_t       ret1, ret2;
+    uint32_t            nspans_decay;
+    
+    auxil_madvise   = arena_cfg->auxil_madvise;
+    nspans_decay    = bin->epoch_min_nspans; 
+    ret2            = TSALLOC_SUCCESS;
+
+    for (uint32_t i = 0; i < nspans_decay; i++)
+    {
+        if (bin_first_nonempty_bucket(bin->bitmap) == TSALLOC_SPAN_RETAINED)
+        {
+            break;
+        }
+        
+        span = bin_get_span(bin);
+        if (!span)
+        {
+            break;
+        }
+
+        ret1    = span_set_state(
+            error_ctx,
+            arena_cfg,
+            span,
+            TSALLOC_SPAN_RETAINED
+        );
+        if (ret1 != TSALLOC_SUCCESS)
+        {
+            bin->epoch_min_nspans   = bin->nspans;
+            append_tsalloc_error_trace(error_ctx);
+            return ret1;
+        }
+
+        ret1 = bin_put_span(
+            error_ctx, 
+            arena_cfg, 
+            bin, 
+            span
+        );
+        if (ret1 != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            ret2    = ret1;
+        }
+    }
+    bin->epoch_min_nspans   = bin->nspans; 
+
+    return ret2;
 }
 
 

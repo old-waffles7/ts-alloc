@@ -196,10 +196,9 @@ _scache_put_span(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
-    span_t             *span,
-    bool                isslab
+    span_t             *span
 ){
-    if (isslab)
+    if (span->flags.is_slab)
     {
         slab_deinit(&cache->slabpool, span);
     }
@@ -332,7 +331,8 @@ scache_init(
     size_t  nclasses;
     size_t  bitmap_bytes;
     
-    nclasses        = (arena_cfg->tsalloc_cfg->nszclasses);
+    memset(auxil_mem, 0, scache_auxil_mem_size(arena_cfg));
+    nclasses        = (arena_cfg->tsalloc_cfg->nszclasses) - (arena_cfg->tsalloc_cfg->nszclasses_slab);
     bitmap_addr     = (byte_t*)ALIGN_UP((uintptr_t)(auxil_mem + (sizeof(bin_t) * nclasses)), 8);
     bitmap_bytes    = ((nclasses + 63) / 64) * 8;
 
@@ -341,7 +341,6 @@ scache_init(
     cache->epoch    = 0;
     cache->bitmap   = bitmap_addr;
     cache->nclasses = nclasses;
-    memset(cache->bitmap, 0, bitmap_bytes);
 
     return TSALLOC_SUCCESS;
 }
@@ -422,13 +421,12 @@ scache_put_span(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
-    span_t             *span,
-    bool                isslab
+    span_t             *span
 ){
     tsalloc_err_t ret;
     
     mutex_lock(&(cache->lock));
-    ret = _scache_put_span(error_ctx, arena_cfg, cache, span, isslab);
+    ret = _scache_put_span(error_ctx, arena_cfg, cache, span);
     mutex_unlock(&(cache->lock));
     
     return ret;
@@ -480,7 +478,7 @@ scache_get_span(
         ret = span_split(error_ctx, arena_cfg, &(cache->spanpool), &span, &cut, szclass);
         if (ret != TSALLOC_SUCCESS)
         {
-            (void)_scache_put_span(error_ctx, arena_cfg, cache, span, false);
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, span);
             append_tsalloc_error_trace(error_ctx);
             mutex_unlock(&(cache->lock));
             return ret;
@@ -489,20 +487,20 @@ scache_get_span(
         ret = pagetrie_insert(error_ctx, &(cache->pagetrie), cut->addr, cut, cut->nbytes);
         if (ret != TSALLOC_SUCCESS)
         {
-            (void)_scache_put_span(error_ctx, arena_cfg, cache, span, false);
-            (void)_scache_put_span(error_ctx, arena_cfg, cache, cut, false);
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, span);
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, cut);
             append_tsalloc_error_trace(error_ctx);
             mutex_unlock(&(cache->lock));
             return ret;
         }
 
-        ret = _scache_put_span(error_ctx, arena_cfg, cache, span, false); 
+        ret = _scache_put_span(error_ctx, arena_cfg, cache, span); 
         if (ret != TSALLOC_SUCCESS)
         {
             span_t *_span;
             if (span_coalesce(error_ctx, arena_cfg, &(cache->spanpool), &(cache->origins), span, cut, &_span) == TSALLOC_SUCCESS) 
             {
-                (void)_scache_put_span(error_ctx, arena_cfg, cache, _span, false);
+                (void)_scache_put_span(error_ctx, arena_cfg, cache, _span);
             }
             append_tsalloc_error_trace(error_ctx);
             mutex_unlock(&(cache->lock));
@@ -521,7 +519,7 @@ scache_get_span(
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            (void)_scache_put_span(error_ctx, arena_cfg, cache, span, false);
+            (void)_scache_put_span(error_ctx, arena_cfg, cache, span);
             append_tsalloc_error_trace(error_ctx);
             mutex_unlock(&(cache->lock));
             return ret;
@@ -535,4 +533,28 @@ scache_get_span(
     *dest   = span;
 
     return TSALLOC_SUCCESS;
+}
+
+tsalloc_err_t
+scache_decay(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *cache
+){
+    tsalloc_err_t   ret1, ret2;
+    int             nclasses;
+
+    ret2    = TSALLOC_SUCCESS;
+    nclasses    = cache->nclasses;
+    for (int i = 0; i < nclasses; i++)
+    {
+        ret1    = bin_decay(error_ctx, arena_cfg, &(cache->bins[i]));
+        if (ret1 != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            ret2    = ret1;
+        }
+    }
+
+    return ret2;
 }

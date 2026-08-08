@@ -33,5 +33,9 @@ bucket_remove(
     span_t     *span
 );
 
+bool
+bucket_isempty(
+    bucket_t   *bucket
+);
 
 #endif  //BUCKET_H

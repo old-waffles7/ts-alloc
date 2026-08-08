@@ -127,15 +127,15 @@ _pail_put_block(
     slab    = scache_mapto_span(spancache, ((void*)block));
     slab_put_block(slab, block);
     
-    if (slab->slab_metadata->nblocks_free == pail->init_info->nblocks)
+    if ((slab->slab_metadata->nblocks_free == pail->init_info->nblocks) 
+        && (!registry_isempty(&(pail->slabs))))
     {
         registry_remove(&(pail->slabs), slab);
         ret = scache_put_span(
             error_ctx, 
             arena_cfg, 
             spancache, 
-            slab, 
-            true
+            slab
         );
         if (ret != TSALLOC_SUCCESS)
         {

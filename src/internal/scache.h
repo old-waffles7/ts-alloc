@@ -50,10 +50,15 @@ static inline size_t
 scache_auxil_mem_size(
     arena_cfg_t        *arena_cfg
 ){
-    size_t  nbytes;
-    size_t  nclasses;
+    static size_t   nbytes;
+    size_t          nclasses;
 
-    nclasses    = (arena_cfg->tsalloc_cfg->nszclasses);
+    if (nbytes)
+    {
+        return nbytes;
+    }
+
+    nclasses    = (arena_cfg->tsalloc_cfg->nszclasses) - (arena_cfg->tsalloc_cfg->nszclasses_slab);
     nbytes      = sizeof(bin_t) * nclasses;
     nbytes     += 8 + ((nclasses + 63) / 64) * 8;
 
@@ -112,6 +117,23 @@ scache_deinit(
 );
 
 /*
+ * @brief   deinitializes a span cache, unconditionally attempts to unmap all cached and allocated 
+ *          memory
+ *
+ * @param   error_ctx   pointer to the error context struct
+ * @param   arena_cfg   pointer to the arena configuration
+ * @param   cache       pointer to the span cache being deinitialized
+ *
+ * @return  status code representing success or failure 
+ */
+tsalloc_err_t
+scache_destroy(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *cache
+);
+
+/*
  * @brief   returns a span to the cache
  *
  * @param   error_ctx   pointer to the error context struct
@@ -126,8 +148,7 @@ scache_put_span(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     scache_t           *cache,
-    span_t             *span,
-    bool                isslab
+    span_t             *span
 );
 
 /*
@@ -151,6 +172,13 @@ scache_get_span(
     scache_t           *cache,
     span_t            **dest,
     tsalloc_szclass_t   szclass
+);
+
+tsalloc_err_t
+scache_decay(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    scache_t           *cache
 );
 
 
