@@ -69,6 +69,16 @@ bcache_get_batch(
     tsalloc_szclass_t   szclass,
     size_t              nblocks
 ){
+    if (szclass > arena_cfg->tsalloc_cfg->nszclasses_slab)
+    {
+        set_tsalloc_error(
+            error_ctx,
+            "bcache_get_batch::bcache.h invalid slab szclass arguemnt",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS;
+    }
+    
     tsalloc_err_t   ret;
 
     ret = pail_get_batch(

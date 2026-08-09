@@ -7,6 +7,8 @@
 #include    "internal/bcache.h"
 #include    "internal/arenaconfig.h"
 
+#include    <stdatomic.h>
+
 
 tsalloc_err_t
 arena_init(

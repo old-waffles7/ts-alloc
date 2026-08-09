@@ -101,7 +101,8 @@ bcache_put_block(
                 error_ctx, 
                 arena_cfg, 
                 cache->macro, 
-                pail, 
+                pail,
+                slab,
                 block
             );
     

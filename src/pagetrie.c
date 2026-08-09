@@ -1,11 +1,13 @@
 
-#include    <string.h>
 
 #include    "internal/common.h"
 #include    "internal/error.h"
 #include    "internal/pagetrie.h"
 
 #include    "internal/objpool.h"
+
+#include    <stdatomic.h>
+#include    <string.h>
 
 
 #define     MAX_NBITS_PAGE_ADRESS   36

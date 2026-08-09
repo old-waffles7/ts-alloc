@@ -119,12 +119,15 @@ _pail_put_block(
     arena_cfg_t        *arena_cfg,
     scache_t           *spancache,
     pail_t             *pail,
+    span_t             *slab,
     byte_t             *block
 ){
-    span_t         *slab;
     tsalloc_err_t   ret;
 
-    slab    = scache_mapto_span(spancache, ((void*)block));
+    if (slab == nullptr)
+    {
+        slab    = scache_mapto_span(spancache, ((void*)block));
+    }
     slab_put_block(slab, block);
     
     if ((slab->slab_metadata->nblocks_free == pail->init_info->nblocks) 
@@ -233,6 +236,7 @@ pail_get_batch(
                     arena_cfg, 
                     spancache, 
                     pail, 
+                    nullptr,
                     dest[j]
                 );
             }
@@ -253,6 +257,7 @@ pail_put_block(
     arena_cfg_t        *arena_cfg,
     scache_t           *spancache,
     pail_t             *pail,
+    span_t             *slab,
     byte_t             *block
 ){
     tsalloc_err_t   ret;
@@ -264,6 +269,7 @@ pail_put_block(
                     arena_cfg, 
                     spancache, 
                     pail, 
+                    slab,
                     block
                 );
     
