@@ -1,3 +1,7 @@
+/*
+ * @file    tsalloc_config.h
+ * @brief   definitions and inline routines for parsing and accessing allocator configurations
+ */
 
 #pragma once
 #ifndef TSALLOC_CONFIG_H
@@ -8,66 +12,103 @@
 #include    "_tsalloc_config.h"
 
 
-typedef uint16_t    tsalloc_szclass_t;
+typedef int32_t tsalloc_szclass_t;
+
+/*
+ * @struct  tsalloc_szclass_request
+ * @brief   encapsulates the parsed size class index and its allocation type (slab vs span)
+ */
+struct tsalloc_szclass_request
+{
+    tsalloc_szclass_t   szclass;    ///< the computed size class index
+    int8_t              isslab;     ///< flag indicating if the size class belongs to a slab (1), span (0), or error (-1)
+};
+typedef struct tsalloc_szclass_request  tsalloc_szreq_t;
 
 
 /*
-    check if allocation is slab or span
-*/
+ * @brief   determines if a requested allocation size falls within the slab limit
+ *
+ * @param   cfg     pointer to the allocator configuration structure
+ * @param   nbytes  the requested allocation size in bytes
+ *
+ * @return  true if the size is managed by slabs, false otherwise
+ */
 static inline bool
-tsalloc_is_slab_alloc(
+tsconfig_isslab_alloc(
     const tsalloc_cfg_t    *cfg,
     size_t  nbytes
 ){
-    return nbytes <= (cfg->slab_alloc_max);
+    return nbytes <= cfg->slab_alloc_max;
 }
 
 /*
-    get size-class of nbytes
-*/
-static inline int32_t
-tsalloc_get_szclass(
+ * @brief   calculates the size class index and type for a given byte size
+ *
+ * @param   cfg     pointer to the allocator configuration structure
+ * @param   nbytes  the requested allocation size in bytes
+ *
+ * @return  a request struct containing the size class index and allocation type
+ */
+static inline tsalloc_szreq_t
+tsconfig_get_szclass(
     const tsalloc_cfg_t    *cfg,
     size_t  nbytes
 ){
-    if (nbytes == 0)
-    {
-        return 0;
-    }
+    tsalloc_szreq_t req;
 
-    if (nbytes > (cfg->alloc_max))
+    req = (tsalloc_szreq_t){
+        .isslab = (-1)
+    };
+
+    if (nbytes == 0 || nbytes > (cfg->alloc_max))
     {
-        return (-1);
+        return req;
     }
 
     //  slab
-    if (nbytes <= (cfg->slab_alloc_max))
+    if (tsconfig_isslab_alloc(cfg, nbytes))
     {
-        uint64_t    idx = (nbytes + cfg->min_align - 1) >> (cfg->min_align_shift);
-        return (cfg->sz_class_of_nbytes[(idx == 0)? 0 : (idx - 1)]);
+        uint64_t    idx;
+
+        idx         = (nbytes + cfg->min_align - 1) >> (cfg->min_align_shift);
+        req.szclass = (cfg->szclass_of_nbytes_slab[(idx == 0)? 0 : (idx -1)]);
+        req.isslab  = true;
+
+        return req;
     }
 
-    // span
-    size_t  req_nbytes;
-    size_t  base_shift;
-    size_t  epoch;
-    size_t  epoch_base_nbytes;
-    size_t  offset;
+    //  span
+    size_t      req_nbytes;
+    size_t      page_shift;
+    size_t      base_shift;
+    size_t      epoch;
+    size_t      epoch_base_nbytes;
+    size_t      offset;
 
     req_nbytes          = nbytes - 1;
-    base_shift          = (cfg->min_align_shift) + (cfg->epoch_shift);
+    page_shift          = (size_t)__builtin_ctzll(cfg->page_size);
+    base_shift          = page_shift + (cfg->epoch_shift);
     epoch               = 63 - __builtin_clzll((req_nbytes >> base_shift) + 1);
     epoch_base_nbytes   = (1ULL << base_shift) * ((1ULL << epoch) - 1);
-    offset              = (req_nbytes - epoch_base_nbytes) >> ((cfg->min_align_shift) + epoch);
+    offset              = (req_nbytes - epoch_base_nbytes) >> (page_shift + epoch);
 
-    return (epoch << (cfg->epoch_shift)) + offset;
+    req.szclass = (epoch << (cfg->epoch_shift)) + offset;
+    req.isslab  = false;
+    
+    return req;
 }
 
 /*
-    get slab_info struct for a slab size-class. content: {block-size, slab-size, nblocks}
-*/
+ * @brief   retrieves the slab metadata associated with a specific slab size class
+ *
+ * @param   cfg      pointer to the allocator configuration structure
+ * @param   szclass  the size class index to query
+ *
+ * @return  pointer to the slab info structure, or nullptr if out of bounds
+ */
 static inline const tsalloc_slab_info_t*
-tsalloc_get_slabinfo(
+tsconfig_get_slabinfo(
     const tsalloc_cfg_t    *cfg,
     tsalloc_szclass_t   szclass
 ){
@@ -80,19 +121,60 @@ tsalloc_get_slabinfo(
 }
 
 /*
-    get size of span/slab
-*/
-static inline size_t
-tsalloc_szclass_span_size(
+ * @brief   retrieves the maximum byte size bounded by a given size class
+ *
+ * @param   cfg      pointer to the allocator configuration structure
+ * @param   szclass  the size class index to query
+ * @param   isslab   boolean flag indicating if the class is a slab (true) or span (false)
+ *
+ * @return  the maximum bytes for the class, or -1 on error
+ */
+static inline ssize_t
+tsconfig_get_nbytes_szclass(
     const tsalloc_cfg_t    *cfg,
-    tsalloc_szclass_t   szclass
+    tsalloc_szclass_t   szclass,
+    bool                isslab
 ){
-    if (szclass < (cfg->nszclasses_slab))
+    if (isslab)
     {
-        return (cfg->slab_infos[szclass].slab_size);
+        if (szclass > cfg->nszclasses_slab)
+        {
+            return (-1);
+        }
+
+        return cfg->szclass_max_nbytes_slab[szclass];
     }
 
-    return (cfg->sz_class_max_nbytes[szclass]);
+    if (szclass > cfg->nszclasses_span)
+    {
+        return (-1);
+    }
+
+    return cfg->szclass_max_nbytes_span[szclass];
+}
+
+static inline ssize_t
+tsconfig_get_nbytes_span_szclass(
+    const tsalloc_cfg_t    *cfg,
+    tsalloc_szclass_t   szclass,
+    bool                isslab
+){
+    if (isslab)
+    {
+        if (szclass > cfg->nszclasses_slab)
+        {
+            return (-1);
+        }
+
+        return cfg->slab_infos[szclass].slab_size;
+    }
+
+    if (szclass > cfg->nszclasses_span)
+    {
+        return (-1);
+    }
+
+    return cfg->szclass_max_nbytes_span[szclass];
 }
 
 

@@ -180,7 +180,7 @@ pail_init(
         return ret;
     }
 
-    pail->init_info = tsalloc_get_slabinfo(arena_cfg->tsalloc_cfg, szclass);
+    pail->init_info = tsconfig_get_slabinfo(arena_cfg->tsalloc_cfg, szclass);
     pail->szclass   = szclass;
 
     return TSALLOC_SUCCESS;

@@ -42,3 +42,7 @@ tsalloc_szclass_t   szclass;
 - can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory to make it undumpable
 
 - rememebr add -fno-strict-aliasing to cmake bc of the casting
+
+- szclasses in config are all  broken (how lovely). how to fix it is it change the
+  config struct's fields. add field nclasses_span since there is some overlap to 
+  span and slab szclasses. have to update scache init for the szclasses after also

@@ -1,6 +1,9 @@
 
 #include    "internal/common.h"
 #include    "internal/error.h"
+
+#include    "config/tsalloc_config.h"
+
 #include    "internal/span.h"
 #include    "internal/objpool.h"
 
@@ -21,25 +24,28 @@ tsalloc_err_t slab_init(
         return ret;
     }
 
-    byte_t *bitmap;
-    bitmap = ((byte_t*)metadata) + sizeof(slab_t);
-    
+    byte_t     *bitmap;
+    uint64_t   *words;
+    uint32_t    nwords;
+    uint32_t    remainder;
+
+    bitmap  = ((byte_t*)metadata) + sizeof(slab_t);
     memset(bitmap, 0, slabpool->nbytes_slab - sizeof(slab_t));
 
-    uint64_t *words = (uint64_t*)bitmap;
-    uint32_t total_words = (slabinfo->nblocks + 63) / 64;
-    
-    if (slabinfo->nblocks > 0) {
-        for (uint32_t i = 0; i < total_words - 1; i++) {
-            words[i] = ~0ULL;
-        }
-        
-        uint32_t remainder = slabinfo->nblocks % 64;
-        if (remainder == 0) {
-            words[total_words - 1] = ~0ULL;
-        } else {
-            words[total_words - 1] = (1ULL << remainder) - 1;
-        }
+    words   = (uint64_t*)bitmap;
+    nwords  = (slabinfo->nblocks + 63) / 64;
+    for (uint32_t i = 0; i < nwords - 1; i++) 
+    {
+        words[i] = ~0ULL;
+    }
+    remainder   = slabinfo->nblocks % 64;
+    if (remainder == 0) 
+    {
+        words[nwords - 1]   = ~0ULL;
+    } 
+    else 
+    {
+        words[nwords - 1]   = (1ULL << remainder) - 1;
     }
 
     *metadata = (slab_t){
@@ -47,7 +53,6 @@ tsalloc_err_t slab_init(
         .nbytes_block   = slabinfo->block_size,
         .nblocks_free   = slabinfo->nblocks
     };
-
     span->flags.is_slab = true;
     span->slab_metadata = metadata;
 

@@ -46,6 +46,7 @@
 #include    <stdbool.h>
 #include    <stddef.h>
 #include    <stdint.h>
+#include    <unistd.h>
 typedef uint8_t byte_t;
 
 #include    <float.h>

@@ -44,25 +44,40 @@ class configuration:
         self.min_align_shift        = int(math.log2(self.min_align))
         self.epoch_shift            = int(math.log2(self.epoch))
         
-    def get_size_classes(
+    def get_slab_size_classes(
         self
     ) -> list:
-        sz_classes  = []
+        szclasses  = []
         size        = self.min_align
-        step        = self.min_align
+        
+        while size <= self.nbytes_slab_alloc_max:
+            szclasses.append(size)
+            
+            p2          = 1 << int(math.log2(size))
+            step        = max(self.min_align, p2 // self.epoch)
+            size       += step
+            
+        return szclasses
+
+    def get_span_size_classes(
+        self
+    ) -> list:
+        szclasses  = []
+        size        = self.page_size
         
         while size <= self.nbytes_alloc_max:
-            for _ in range(self.epoch):
-                sz_classes.append(size)
-                if size >= self.nbytes_alloc_max:
-                    return sz_classes
-                size += step
-            step *= 2
-        return sz_classes
+            szclasses.append(size)
+            
+            p2          = 1 << int(math.log2(size))
+            step        = max(self.page_size, p2 // self.epoch)
+            step        = (step // self.page_size) * self.page_size
+            size       += step
+            
+        return szclasses
 
     def get_slab_infos(
         self, 
-        sizes: list
+        sizes       : list
     ) -> list:
         infos = []
         
@@ -72,21 +87,16 @@ class configuration:
         prev_nblocks = float('inf')
         
         for block_size in sizes:
-            if block_size > self.nbytes_slab_alloc_max:
-                break
-                
-            target_n = max(min_blocks, target_bytes // block_size)
+            target_n    = max(min_blocks, target_bytes // block_size)
             
-            req_bytes = target_n * block_size
-            slab_size = ((req_bytes + self.page_size - 1) // self.page_size) * self.page_size
+            req_bytes   = target_n * block_size
+            slab_size   = ((req_bytes + self.page_size - 1) // self.page_size) * self.page_size
             
-            nblocks = slab_size // block_size
-            nblocks = min(nblocks, prev_nblocks)
+            nblocks     = slab_size // block_size
+            nblocks     = min(nblocks, prev_nblocks)
             
             infos.append((block_size, slab_size, nblocks))
             prev_nblocks = nblocks
-            
-        return infos
             
         return infos
 
@@ -98,9 +108,6 @@ class configuration:
         limits  = []
 
         for i, size in enumerate(sizes):
-            if size > self.nbytes_slab_alloc_max:
-                break
-            
             nblocks = slab_infos[i][2]
             limit   = min(128, nblocks // 2)
             
@@ -213,11 +220,12 @@ def write_global_file_header(f) -> None:
     f.write("\tuint32_t\tmin_align_shift;\n")
     f.write("\tuint32_t\tepoch_shift;\n")
     f.write("\tuint32_t\tnbytes_bitmap;\n")
-    f.write("\tuint32_t\tnszclasses;\n")
     f.write("\tuint32_t\tnszclasses_slab;\n")
+    f.write("\tuint32_t\tnszclasses_span;\n")
     f.write("\n")
-    f.write("\tconst uint64_t*\t\t\t\tsz_class_max_nbytes;\n")
-    f.write("\tconst uint16_t*\t\t\t\tsz_class_of_nbytes;\n")
+    f.write("\tconst uint64_t*\t\t\t\tszclass_max_nbytes_slab;\n")
+    f.write("\tconst uint64_t*\t\t\t\tszclass_max_nbytes_span;\n")
+    f.write("\tconst uint16_t*\t\t\t\tszclass_of_nbytes_slab;\n")
     f.write("\tconst tsalloc_slab_info_t*\tslab_infos;\n")
     f.write("\tconst uint32_t*\t\t\t\ttcache_info;\n")
     f.write("};\n")
@@ -227,25 +235,29 @@ def write_global_file_header(f) -> None:
 def generate_config_c_block(
     cfg : configuration
 ) -> str:
-    sizes           = cfg.get_size_classes()
-    class_count     = len(sizes)
-    slab_infos      = cfg.get_slab_infos(sizes)
-    slab_count      = len(slab_infos)
-    tcache_limits   = cfg.get_tcache_limits(sizes, slab_infos)
+    slab_sizes      = cfg.get_slab_size_classes()
+    span_sizes      = cfg.get_span_size_classes()
+    slab_count      = len(slab_sizes)
+    span_count      = len(span_sizes)
+    slab_infos      = cfg.get_slab_infos(slab_sizes)
+    tcache_limits   = cfg.get_tcache_limits(slab_sizes, slab_infos)
     
     size2index  = []
     curr_idx    = 0
     for req_bytes in range(cfg.min_align, cfg.nbytes_slab_alloc_max + 1, cfg.min_align):
-        while sizes[curr_idx] < req_bytes:
+        while slab_sizes[curr_idx] < req_bytes:
             curr_idx += 1
         size2index.append(curr_idx)
 
     out = f"// -----[TSALLOC_CONFIG_START: {cfg.page_size}]-----\n\n"
 
-    out += f"static const uint64_t\tsz_class_max_nbytes_{cfg.page_size}[{class_count}]\t= {{\n"
-    out += "    " + ", ".join(map(str, sizes)) + "\n};\n\n"
+    out += f"static const uint64_t\tszclass_max_nbytes_slab_{cfg.page_size}[{slab_count}]\t= {{\n"
+    out += "    " + ", ".join(map(str, slab_sizes)) + "\n};\n\n"
 
-    out += f"static const uint16_t\tsz_class_of_nbytes_{cfg.page_size}[{len(size2index)}]\t= {{\n"
+    out += f"static const uint64_t\tszclass_max_nbytes_span_{cfg.page_size}[{span_count}]\t= {{\n"
+    out += "    " + ", ".join(map(str, span_sizes)) + "\n};\n\n"
+
+    out += f"static const uint16_t\tszclass_of_nbytes_slab_{cfg.page_size}[{len(size2index)}]\t= {{\n"
     out += "    " + ", ".join(map(str, size2index)) + "\n};\n\n"
 
     out += f"static const tsalloc_slab_info_t\tslab_infos_{cfg.page_size}[{slab_count}]\t= {{\n"
@@ -267,10 +279,11 @@ def generate_config_c_block(
         f"\t.min_align_shift        = {cfg.min_align_shift},\n"
         f"\t.epoch_shift            = {cfg.epoch_shift},\n"
         f"\t.nbytes_bitmap          = {cfg.nbytes_bitmap},\n"
-        f"\t.nszclasses             = {class_count},\n"
         f"\t.nszclasses_slab        = {slab_count},\n"
-        f"\t.sz_class_max_nbytes    = sz_class_max_nbytes_{cfg.page_size},\n"
-        f"\t.sz_class_of_nbytes     = sz_class_of_nbytes_{cfg.page_size},\n"
+        f"\t.nszclasses_span        = {span_count},\n"
+        f"\t.szclass_max_nbytes_slab = szclass_max_nbytes_slab_{cfg.page_size},\n"
+        f"\t.szclass_max_nbytes_span = szclass_max_nbytes_span_{cfg.page_size},\n"
+        f"\t.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_{cfg.page_size},\n"
         f"\t.slab_infos             = slab_infos_{cfg.page_size},\n"
         f"\t.tcache_info            = tcache_info_{cfg.page_size}\n"
         f"}};\n\n"

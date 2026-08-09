@@ -27,12 +27,12 @@ bcache_init(
     }
     
     pail_t         *pails;
-    size_t          nclasses;
+    size_t          nszclasses;
     tsalloc_err_t   ret;
 
     pails       = (pail_t*)auxil_mem;
-    nclasses    = arena_cfg->tsalloc_cfg->nszclasses_slab;
-    for (uint16_t i = 0; i < nclasses; i++)
+    nszclasses  = arena_cfg->tsalloc_cfg->nszclasses_slab;
+    for (uint16_t i = 0; i < nszclasses; i++)
     {
         ret = pail_init(error_ctx, arena_cfg, &(pails[i]), i);
         if (ret != TSALLOC_SUCCESS)
@@ -48,7 +48,7 @@ bcache_init(
 
     cache->pails    = pails;
     cache->macro    = macro;
-    cache->nclasses = nclasses;
+    cache->nclasses = nszclasses;
 
     return TSALLOC_SUCCESS;
 }

@@ -51,16 +51,16 @@ scache_auxil_mem_size(
     arena_cfg_t        *arena_cfg
 ){
     static size_t   nbytes;
-    size_t          nclasses;
+    size_t          nszclasses;
 
     if (nbytes)
     {
         return nbytes;
     }
 
-    nclasses    = (arena_cfg->tsalloc_cfg->nszclasses) - (arena_cfg->tsalloc_cfg->nszclasses_slab);
-    nbytes      = sizeof(bin_t) * nclasses;
-    nbytes     += 8 + ((nclasses + 63) / 64) * 8;
+    nszclasses  = (arena_cfg->tsalloc_cfg->nszclasses_span);
+    nbytes      = sizeof(bin_t) * nszclasses;
+    nbytes     += 8 + ((nszclasses + 63) / 64) * 8;
 
     return nbytes;
 }

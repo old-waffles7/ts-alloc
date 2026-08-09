@@ -39,7 +39,8 @@ bin_init(
     bin_t              *bin,
     tsalloc_szclass_t   szclass
 ){
-    *bin    = (bin_t){0};
+    *bin            = (bin_t){0};
+    bin->szclass    = szclass;
 }
 
 static inline bool 

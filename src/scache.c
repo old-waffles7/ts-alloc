@@ -2,6 +2,8 @@
 #include    "internal/error.h"
 #include    "internal/scache.h"
 
+#include    "config/tsalloc_config.h"
+
 #include    "internal/bin.h"
 #include    "internal/span.h"
 #include    "internal/slab.h"
@@ -26,7 +28,7 @@ scache_find_nonempty_bin_idx(
     uint64_t    max_word_idx;
     bool        isoverfit;
 
-    idx             = cache->nclasses;                
+    idx             = (-1);                
     isoverfit       = true;                                  
     bitmap          = ((uint64_t*)(cache->bitmap));
     word_idx        = szclass / 64;
@@ -328,19 +330,24 @@ scache_init(
     }
 
     byte_t *bitmap_addr;
-    size_t  nclasses;
-    size_t  bitmap_bytes;
+    size_t  nszclasses;
+    size_t  nbytes_bitmap;
     
-    memset(auxil_mem, 0, scache_auxil_mem_size(arena_cfg));
-    nclasses        = (arena_cfg->tsalloc_cfg->nszclasses) - (arena_cfg->tsalloc_cfg->nszclasses_slab);
-    bitmap_addr     = (byte_t*)ALIGN_UP((uintptr_t)(auxil_mem + (sizeof(bin_t) * nclasses)), 8);
-    bitmap_bytes    = ((nclasses + 63) / 64) * 8;
+    nszclasses      = arena_cfg->tsalloc_cfg->nszclasses_span;
+    bitmap_addr     = (byte_t*)ALIGN_UP((uintptr_t)(auxil_mem + (sizeof(bin_t) * nszclasses)), 8);
+    nbytes_bitmap   = ((nszclasses + 63) / 64) * 8;
 
     cache->bins     = (bin_t*)auxil_mem;
     cache->origins  = (records_t){0};
     cache->epoch    = 0;
     cache->bitmap   = bitmap_addr;
-    cache->nclasses = nclasses;
+    cache->nclasses = nszclasses;
+
+    for (int i = 0; i < nszclasses; i++)
+    {
+        bin_init(&(cache->bins[i]), i);
+    }
+    memset(cache->bitmap, 0, nbytes_bitmap);
 
     return TSALLOC_SUCCESS;
 }
@@ -449,7 +456,7 @@ scache_get_span(
     mutex_lock(&(cache->lock));
 
     isoverfit = scache_find_nonempty_bin_idx(cache, &bin_szclass, szclass);
-    if (bin_szclass >= cache->nclasses)
+    if (bin_szclass == (-1))
     {
         ret = scache_mint_span(error_ctx, arena_cfg, cache, &span, szclass);
         if (ret != TSALLOC_SUCCESS)

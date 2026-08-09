@@ -3,6 +3,8 @@
 #include    "internal/error.h"
 #include    "internal/span.h"
 
+#include    "config/tsalloc_config.h"
+
 #include    "internal/records.h"
 #include    "internal/objpool.h"
 #include    "internal/pagetrie.h"
@@ -32,7 +34,7 @@ span_create(
     void   *mem;
     size_t  nbytes;
 
-    nbytes  = tsalloc_szclass_span_size((arena_cfg->tsalloc_cfg), szclass);
+    nbytes  = tsconfig_get_nbytes_szclass((arena_cfg->tsalloc_cfg), szclass, false);
     mem     = arena_cfg->auxil_map(
         arena_cfg->extra, 
         (_align != TSALLOC_DEFAULT_ARG)? _align : arena_cfg->auxil_align, 
@@ -118,7 +120,7 @@ tsalloc_err_t span_split(
 ) {
     size_t  split_nbytes;
     
-    split_nbytes    = tsalloc_szclass_span_size((arena_cfg->tsalloc_cfg), szclass);
+    split_nbytes    = tsconfig_get_nbytes_szclass((arena_cfg->tsalloc_cfg), szclass, false);
 
     if (((*origin)->nbytes) < split_nbytes)
     {
@@ -159,7 +161,7 @@ tsalloc_err_t span_split(
     (*origin)->nbytes   = origin_nbytes;
     
     split->flags.szclass        = szclass;
-    (*origin)->flags.szclass    = tsalloc_get_szclass((arena_cfg->tsalloc_cfg), origin_nbytes);
+    (*origin)->flags.szclass    = tsconfig_get_szclass((arena_cfg->tsalloc_cfg), origin_nbytes).szclass;
     
     *dest   = split;
 
@@ -220,7 +222,7 @@ tsalloc_err_t span_coalesce(
     tsalloc_szclass_t   szclass; 
 
     nbytes  = (lspan->nbytes) + (rspan->nbytes);
-    szclass = tsalloc_get_szclass((arena_cfg->tsalloc_cfg), nbytes);
+    szclass = tsconfig_get_szclass((arena_cfg->tsalloc_cfg), nbytes).szclass;
 
     lspan->flags.age        = MIN((lspan->flags.age), (rspan->flags.age));
     lspan->flags.szclass    = szclass;
