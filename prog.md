@@ -27,17 +27,11 @@ tsalloc_szclass_t   szclass;
         return TSALLOC_INVALID_ARGS;
     }
 
-- make ram pinnable via a pin_alloc or something like that (in malloc.h not arena.h)
-  maybe use mlock, posix portable
+- add functionality to disable (memcaching) thread local cache in a thread
 
-- add functionality to disable thread local cache in a thread
-
-- in tcaches intrusively store blocks ages, use LL as a queue. only update age of 
-  oldest block pass its age/2 or something onto next block.
+- in tcaches store blocks using arrays (columns)
 
 - in config.py make it so if > uint16 num of classes failure
-
-- implement portable fallaback to __builtin_clzll??
 
 - can get from memory to span struct using pagetrie. e.g using madvise on a bit of memory to make it undumpable
 
@@ -49,3 +43,7 @@ tsalloc_szclass_t   szclass;
 - column, col_t
 
 - remove opt for logging
+
+- make config script generate function that maps pagesize -> tsalloc_cfg_t
+
+- make tcache have pointer to errorctx
