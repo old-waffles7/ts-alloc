@@ -25,29 +25,16 @@ static inline size_t
 arena_auxil_mem_size(
     arena_cfg_t    *arena_cfg
 ){
-    return scache_auxil_mem_size(arena_cfg) + bcache_auxil_mem_size(arena_cfg);
-}
+    static size_t   nbytes;
 
+    if (nbytes)
+    {
+        return nbytes;
+    }
 
-tsalloc_err_t
-arena_init(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    byte_t             *auxil_mem,
-    arena_t            *arena
-);
+    nbytes  = scache_auxil_mem_size(arena_cfg) + bcache_auxil_mem_size(arena_cfg);
 
-tsalloc_err_t
-arena_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena
-);
-
-static inline void
-arena_claim(
-    arena_t    *arena
-){
-    (void)atomic_fetch_add(&(arena->nthreads), 1);
+    return nbytes;
 }
 
 static inline tsalloc_err_t
@@ -154,6 +141,27 @@ arena_get_span(
     return TSALLOC_SUCCESS;
 }
 
+
+tsalloc_err_t
+arena_init(
+    tsalloc_errctx_t   *error_ctx,
+    arena_cfg_t        *arena_cfg,
+    byte_t             *auxil_mem,
+    arena_t            *arena
+);
+
+tsalloc_err_t
+arena_deinit(
+    tsalloc_errctx_t   *error_ctx,
+    arena_t            *arena
+);
+
+static inline void
+arena_claim(
+    arena_t    *arena
+){
+    (void)atomic_fetch_add(&(arena->nthreads), 1);
+}
 
 
 #endif  //ARENA_H

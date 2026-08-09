@@ -112,18 +112,41 @@ struct arena_config
      */
     auxil_madvise_fn    auxil_madvise;
 
-    void               *extra;          ///< pointer to state for use by user in auxiliary mapping, unmapping functions
-    tsalloc_cfg_t      *tsalloc_cfg;    ///< pointer to configuration profile for library
+    void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
+    
+    const tsalloc_cfg_t    *tsalloc_cfg;    ///< pointer to configuration profile for library
     
     tsalloc_szclass_t   default_new_span_szclass;
     size_t              auxil_align;    ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-    
-    bool    default_to_core_dump;
+
     bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
     bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
 };
-
 typedef struct arena_config arena_cfg_t;
+
+static inline bool
+arena_cfg_isvalid(
+    arena_cfg_t cfg
+){
+    if ((!cfg.auxil_map) || (!cfg.auxil_unmap))
+    {
+        return false;
+    }
+    if (!cfg.tsalloc_cfg)
+    {
+        return false;
+    }
+    if (!IS_POWER_OF_TWO(cfg.auxil_align))
+    {
+        return false;
+    }
+    if (cfg.default_new_span_szclass >= cfg.tsalloc_cfg->nszclasses_span)
+    {
+        return false;
+    }
+
+    return true;
+}
 
 /**
  * @brief   default auxiliary mapping function for cpu memory

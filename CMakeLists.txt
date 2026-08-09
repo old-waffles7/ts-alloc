@@ -15,3 +15,7 @@ endif()
 #   conditionally enable tracking of memory-management stats
 if (VERBOSE_STATS)
     target_compile_definitions(tsalloc PRIVATE OPT_TRACK_STATS)
+endif()
+#   conditionally enable error logging
+if (ERROR_LOG)
+    target_compile_definitions(tsalloc PRIVATE OPT_LOG_ERRORS)

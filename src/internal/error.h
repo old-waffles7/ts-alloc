@@ -25,6 +25,7 @@
 enum TSALLOC_ERROR    : uint8_t
 {
     TSALLOC_SUCCESS = 0,        ///< operation completed successfully
+    TSALLOC_INITIALIZE_FAILURE, ///< arena failed to initialize
     TSALLOC_OS_ERR,             ///< os error, sets `os_error_code`
     TSALLOC_AUXIL_MAP_ERR,      ///< auxilliary allocator could not allocate memory
     TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
@@ -40,6 +41,7 @@ struct tsalloc_err_ctx
     #ifdef  OPT_TRACE_ERRORS    // CMake option
         char    trace[512]; 
     #endif
+
     const char     *orig_filename;
     const char     *message;
     int             os_error_code;

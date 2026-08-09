@@ -43,8 +43,9 @@ tsalloc_szclass_t   szclass;
 
 - rememebr add -fno-strict-aliasing to cmake bc of the casting
 
-- szclasses in config are all  broken (how lovely). how to fix it is it change the
-  config struct's fields. add field nclasses_span since there is some overlap to 
-  span and slab szclasses. have to update scache init for the szclasses after also
+- remove size generating epoch from config args, add argument for
+    reset epoch
 
 - column, col_t
+
+- remove opt for logging

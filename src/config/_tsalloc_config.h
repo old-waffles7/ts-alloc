@@ -20,10 +20,11 @@ struct tsalloc_config
 {
 	uint64_t	page_size;
 	uint64_t	min_align;
-	uint32_t	epoch;
 	uint64_t	slab_alloc_max;
+	uint64_t	epoch_max;
 	uint64_t	alloc_max;
 	uint64_t	new_span_size;
+	uint32_t	epoch;
 	uint32_t	min_align_shift;
 	uint32_t	epoch_shift;
 	uint32_t	nbytes_bitmap;
@@ -97,24 +98,26 @@ static const uint32_t	tcache_info_4096[36]			= {
 };
 
 static const tsalloc_cfg_t	config_4096	= {
-	.page_size              = 4096,
-	.min_align              = 16,
-	.epoch                  = 4,
-	.slab_alloc_max         = 16384,
-	.alloc_max              = 9223372036854775806ULL,
-	.new_span_size          = 2097152,
-	.min_align_shift        = 4,
-	.epoch_shift            = 2,
-	.nbytes_bitmap          = 32,
-	.nszclasses_slab        = 36,
-	.nszclasses_span        = 199,
-	.szclass_max_nbytes_slab = szclass_max_nbytes_slab_4096,
-	.szclass_max_nbytes_span = szclass_max_nbytes_span_4096,
-	.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_4096,
-	.slab_infos             = slab_infos_4096,
-	.tcache_info            = tcache_info_4096
+	.page_size                  = 4096,
+	.min_align                  = 16,
+	.slab_alloc_max             = 16384,
+	.epoch_max                  = 65536,
+	.alloc_max                  = 9223372036854775806ULL,
+	.new_span_size              = 2097152,
+	.epoch                      = 4,
+	.min_align_shift            = 4,
+	.epoch_shift                = 2,
+	.nbytes_bitmap              = 32,
+	.nszclasses_slab            = 36,
+	.nszclasses_span            = 199,
+	.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_4096,
+	.szclass_max_nbytes_span    = szclass_max_nbytes_span_4096,
+	.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_4096,
+	.slab_infos                 = slab_infos_4096,
+	.tcache_info                = tcache_info_4096
 };
 
+#define    TSALLOC_PAGESIZE_4096	config_4096
 // -----[TSALLOC_CONFIG_END: 4096]-----
 
 // -----[TSALLOC_CONFIG_START: 16384]-----
@@ -175,24 +178,26 @@ static const uint32_t	tcache_info_16384[36]			= {
 };
 
 static const tsalloc_cfg_t	config_16384	= {
-	.page_size              = 16384,
-	.min_align              = 16,
-	.epoch                  = 4,
-	.slab_alloc_max         = 16384,
-	.alloc_max              = 9223372036854775806ULL,
-	.new_span_size          = 2097152,
-	.min_align_shift        = 4,
-	.epoch_shift            = 2,
-	.nbytes_bitmap          = 128,
-	.nszclasses_slab        = 36,
-	.nszclasses_span        = 191,
-	.szclass_max_nbytes_slab = szclass_max_nbytes_slab_16384,
-	.szclass_max_nbytes_span = szclass_max_nbytes_span_16384,
-	.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_16384,
-	.slab_infos             = slab_infos_16384,
-	.tcache_info            = tcache_info_16384
+	.page_size                  = 16384,
+	.min_align                  = 16,
+	.slab_alloc_max             = 16384,
+	.epoch_max                  = 65536,
+	.alloc_max                  = 9223372036854775806ULL,
+	.new_span_size              = 2097152,
+	.epoch                      = 4,
+	.min_align_shift            = 4,
+	.epoch_shift                = 2,
+	.nbytes_bitmap              = 128,
+	.nszclasses_slab            = 36,
+	.nszclasses_span            = 191,
+	.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_16384,
+	.szclass_max_nbytes_span    = szclass_max_nbytes_span_16384,
+	.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_16384,
+	.slab_infos                 = slab_infos_16384,
+	.tcache_info                = tcache_info_16384
 };
 
+#define    TSALLOC_PAGESIZE_16384	config_16384
 // -----[TSALLOC_CONFIG_END: 16384]-----
 
 // -----[TSALLOC_CONFIG_START: 32768]-----
@@ -253,24 +258,26 @@ static const uint32_t	tcache_info_32768[36]			= {
 };
 
 static const tsalloc_cfg_t	config_32768	= {
-	.page_size              = 32768,
-	.min_align              = 16,
-	.epoch                  = 4,
-	.slab_alloc_max         = 16384,
-	.alloc_max              = 9223372036854775806ULL,
-	.new_span_size          = 2097152,
-	.min_align_shift        = 4,
-	.epoch_shift            = 2,
-	.nbytes_bitmap          = 256,
-	.nszclasses_slab        = 36,
-	.nszclasses_span        = 187,
-	.szclass_max_nbytes_slab = szclass_max_nbytes_slab_32768,
-	.szclass_max_nbytes_span = szclass_max_nbytes_span_32768,
-	.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_32768,
-	.slab_infos             = slab_infos_32768,
-	.tcache_info            = tcache_info_32768
+	.page_size                  = 32768,
+	.min_align                  = 16,
+	.slab_alloc_max             = 16384,
+	.epoch_max                  = 65536,
+	.alloc_max                  = 9223372036854775806ULL,
+	.new_span_size              = 2097152,
+	.epoch                      = 4,
+	.min_align_shift            = 4,
+	.epoch_shift                = 2,
+	.nbytes_bitmap              = 256,
+	.nszclasses_slab            = 36,
+	.nszclasses_span            = 187,
+	.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_32768,
+	.szclass_max_nbytes_span    = szclass_max_nbytes_span_32768,
+	.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_32768,
+	.slab_infos                 = slab_infos_32768,
+	.tcache_info                = tcache_info_32768
 };
 
+#define    TSALLOC_PAGESIZE_32768	config_32768
 // -----[TSALLOC_CONFIG_END: 32768]-----
 
 // -----[TSALLOC_CONFIG_START: 65536]-----
@@ -331,24 +338,26 @@ static const uint32_t	tcache_info_65536[36]			= {
 };
 
 static const tsalloc_cfg_t	config_65536	= {
-	.page_size              = 65536,
-	.min_align              = 16,
-	.epoch                  = 4,
-	.slab_alloc_max         = 16384,
-	.alloc_max              = 9223372036854775806ULL,
-	.new_span_size          = 2097152,
-	.min_align_shift        = 4,
-	.epoch_shift            = 2,
-	.nbytes_bitmap          = 512,
-	.nszclasses_slab        = 36,
-	.nszclasses_span        = 183,
-	.szclass_max_nbytes_slab = szclass_max_nbytes_slab_65536,
-	.szclass_max_nbytes_span = szclass_max_nbytes_span_65536,
-	.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_65536,
-	.slab_infos             = slab_infos_65536,
-	.tcache_info            = tcache_info_65536
+	.page_size                  = 65536,
+	.min_align                  = 16,
+	.slab_alloc_max             = 16384,
+	.epoch_max                  = 65536,
+	.alloc_max                  = 9223372036854775806ULL,
+	.new_span_size              = 2097152,
+	.epoch                      = 4,
+	.min_align_shift            = 4,
+	.epoch_shift                = 2,
+	.nbytes_bitmap              = 512,
+	.nszclasses_slab            = 36,
+	.nszclasses_span            = 183,
+	.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_65536,
+	.szclass_max_nbytes_span    = szclass_max_nbytes_span_65536,
+	.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_65536,
+	.slab_infos                 = slab_infos_65536,
+	.tcache_info                = tcache_info_65536
 };
 
+#define    TSALLOC_PAGESIZE_65536	config_65536
 // -----[TSALLOC_CONFIG_END: 65536]-----
 
 // -----[TSALLOC_CONFIG_START: 2097152]-----
@@ -413,24 +422,26 @@ static const uint32_t	tcache_info_2097152[40]			= {
 };
 
 static const tsalloc_cfg_t	config_2097152	= {
-	.page_size              = 2097152,
-	.min_align              = 256,
-	.epoch                  = 4,
-	.slab_alloc_max         = 524288,
-	.alloc_max              = 9223372036854775806ULL,
-	.new_span_size          = 33554432,
-	.min_align_shift        = 8,
-	.epoch_shift            = 2,
-	.nbytes_bitmap          = 1024,
-	.nszclasses_slab        = 40,
-	.nszclasses_span        = 163,
-	.szclass_max_nbytes_slab = szclass_max_nbytes_slab_2097152,
-	.szclass_max_nbytes_span = szclass_max_nbytes_span_2097152,
-	.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_2097152,
-	.slab_infos             = slab_infos_2097152,
-	.tcache_info            = tcache_info_2097152
+	.page_size                  = 2097152,
+	.min_align                  = 256,
+	.slab_alloc_max             = 524288,
+	.epoch_max                  = 33554432,
+	.alloc_max                  = 9223372036854775806ULL,
+	.new_span_size              = 33554432,
+	.epoch                      = 4,
+	.min_align_shift            = 8,
+	.epoch_shift                = 2,
+	.nbytes_bitmap              = 1024,
+	.nszclasses_slab            = 40,
+	.nszclasses_span            = 163,
+	.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_2097152,
+	.szclass_max_nbytes_span    = szclass_max_nbytes_span_2097152,
+	.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_2097152,
+	.slab_infos                 = slab_infos_2097152,
+	.tcache_info                = tcache_info_2097152
 };
 
+#define    TSALLOC_PAGESIZE_2097152	config_2097152
 // -----[TSALLOC_CONFIG_END: 2097152]-----
 
 #endif	//_TSALLOC_CONFIG_H

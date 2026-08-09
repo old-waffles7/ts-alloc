@@ -25,10 +25,6 @@ typedef struct pail_stats   pail_stats_t;
 
 struct pail
 {
-    #ifdef  OPT_TRACK_STATS
-        pail_stats_t    stats;
-    #endif  //OPT_TRACK_STATS
-
     const tsalloc_slab_info_t  *init_info;
     registry_t          slabs;
     mutex_t             lock;

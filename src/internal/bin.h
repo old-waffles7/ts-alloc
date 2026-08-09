@@ -13,19 +13,8 @@
 #include    "arenaconfig.h"
 
 
-struct bin_stats
-{
-    size_t  nspans_cached[SPAN_NSTATES];
-};
-typedef struct bin_stats    bin_stats_t;
-
-
 struct bin 
 {
-    #ifdef  OPT_TRACK_STATS
-        bin_stats_t stats;
-    #endif  //OPT_TRACK_STATS
-
     bucket_t            buckets[SPAN_NSTATES];
     tsalloc_szclass_t   szclass;
     uint32_t            nspans;

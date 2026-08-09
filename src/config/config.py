@@ -26,7 +26,8 @@ class configuration:
         epoch,
         nbytes_slab_alloc_max,
         nbytes_alloc_max,
-        nbytes_new_span
+        nbytes_epoch_max,
+        nbytes_new_span,
     ):
         if min_align > page_size:
             raise ValueError(f"min-align ({min_align}) must be <= page-size ({page_size})")
@@ -38,6 +39,7 @@ class configuration:
         self.epoch                  = epoch
         self.nbytes_slab_alloc_max  = nbytes_slab_alloc_max
         self.nbytes_alloc_max       = nbytes_alloc_max
+        self.nbytes_epoch_max       = nbytes_epoch_max
         self.nbytes_new_span        = nbytes_new_span
         self.nbytes_bitmap          = math.ceil(max_blocks / 64) * 8
 
@@ -125,6 +127,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         epoch                   = 4 ,
         nbytes_slab_alloc_max   = (1024 * 16),
+        nbytes_epoch_max        = (1024 * 64),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
     ),
@@ -133,6 +136,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         epoch                   = 4 ,
         nbytes_slab_alloc_max   = (1024 * 16),
+        nbytes_epoch_max        = (1024 * 64),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
     ),
@@ -141,6 +145,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         epoch                   = 4 ,
         nbytes_slab_alloc_max   = (1024 * 16),
+        nbytes_epoch_max        = (1024 * 64),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
     ),
@@ -149,6 +154,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         epoch                   = 4 ,
         nbytes_slab_alloc_max   = (1024 * 16),
+        nbytes_epoch_max        = (1024 * 64),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 2)
     ),
@@ -157,6 +163,7 @@ DEFAULT_CONFIGS = {
         min_align               = 256,
         epoch                   = 4,
         nbytes_slab_alloc_max   = (1024 * 512),
+        nbytes_epoch_max        = (1024 * 1024 * 32),
         nbytes_alloc_max        = (sys.maxsize - 1),
         nbytes_new_span         = (1024 * 1024 * 32)
     )
@@ -213,10 +220,11 @@ def write_global_file_header(f) -> None:
     f.write("{\n")
     f.write("\tuint64_t\tpage_size;\n")
     f.write("\tuint64_t\tmin_align;\n")
-    f.write("\tuint32_t\tepoch;\n")
     f.write("\tuint64_t\tslab_alloc_max;\n")
+    f.write("\tuint64_t\tepoch_max;\n")
     f.write("\tuint64_t\talloc_max;\n")
     f.write("\tuint64_t\tnew_span_size;\n")
+    f.write("\tuint32_t\tepoch;\n")
     f.write("\tuint32_t\tmin_align_shift;\n")
     f.write("\tuint32_t\tepoch_shift;\n")
     f.write("\tuint32_t\tnbytes_bitmap;\n")
@@ -270,24 +278,27 @@ def generate_config_c_block(
 
     out += (
         f"static const tsalloc_cfg_t\tconfig_{cfg.page_size}\t= {{\n"
-        f"\t.page_size              = {cfg.page_size},\n"
-        f"\t.min_align              = {cfg.min_align},\n"
-        f"\t.epoch                  = {cfg.epoch},\n"
-        f"\t.slab_alloc_max         = {cfg.nbytes_slab_alloc_max},\n"
-        f"\t.alloc_max              = {cfg.nbytes_alloc_max}ULL,\n"
-        f"\t.new_span_size          = {cfg.nbytes_new_span},\n"
-        f"\t.min_align_shift        = {cfg.min_align_shift},\n"
-        f"\t.epoch_shift            = {cfg.epoch_shift},\n"
-        f"\t.nbytes_bitmap          = {cfg.nbytes_bitmap},\n"
-        f"\t.nszclasses_slab        = {slab_count},\n"
-        f"\t.nszclasses_span        = {span_count},\n"
-        f"\t.szclass_max_nbytes_slab = szclass_max_nbytes_slab_{cfg.page_size},\n"
-        f"\t.szclass_max_nbytes_span = szclass_max_nbytes_span_{cfg.page_size},\n"
-        f"\t.szclass_of_nbytes_slab   = szclass_of_nbytes_slab_{cfg.page_size},\n"
-        f"\t.slab_infos             = slab_infos_{cfg.page_size},\n"
-        f"\t.tcache_info            = tcache_info_{cfg.page_size}\n"
+        f"\t.page_size                  = {cfg.page_size},\n"
+        f"\t.min_align                  = {cfg.min_align},\n"
+        f"\t.slab_alloc_max             = {cfg.nbytes_slab_alloc_max},\n"
+        f"\t.epoch_max                  = {cfg.nbytes_epoch_max},\n"
+        f"\t.alloc_max                  = {cfg.nbytes_alloc_max}ULL,\n"
+        f"\t.new_span_size              = {cfg.nbytes_new_span},\n"
+        f"\t.epoch                      = {cfg.epoch},\n"
+        f"\t.min_align_shift            = {cfg.min_align_shift},\n"
+        f"\t.epoch_shift                = {cfg.epoch_shift},\n"
+        f"\t.nbytes_bitmap              = {cfg.nbytes_bitmap},\n"
+        f"\t.nszclasses_slab            = {slab_count},\n"
+        f"\t.nszclasses_span            = {span_count},\n"
+        f"\t.szclass_max_nbytes_slab    = szclass_max_nbytes_slab_{cfg.page_size},\n"
+        f"\t.szclass_max_nbytes_span    = szclass_max_nbytes_span_{cfg.page_size},\n"
+        f"\t.szclass_of_nbytes_slab     = szclass_of_nbytes_slab_{cfg.page_size},\n"
+        f"\t.slab_infos                 = slab_infos_{cfg.page_size},\n"
+        f"\t.tcache_info                = tcache_info_{cfg.page_size}\n"
         f"}};\n\n"
     )
+
+    out += f"#define    TSALLOC_PAGESIZE_{cfg.page_size}\tconfig_{cfg.page_size}\n"
 
     out += f"// -----[TSALLOC_CONFIG_END: {cfg.page_size}]-----\n\n"
     

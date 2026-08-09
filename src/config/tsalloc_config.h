@@ -177,5 +177,10 @@ tsconfig_get_nbytes_span_szclass(
     return cfg->szclass_max_nbytes_span[szclass];
 }
 
+static inline tsalloc_cfg_t*
+tsconfig_get_cfg(
+    size_t  pagesize
+);
+
 
 #endif  //TSALLOC_CONFIG_H
