@@ -8,6 +8,9 @@
 #include	"../internal/common.h"
 
 
+#define	TSALLOC_MAXN_ARENAS	{64}
+
+
 struct tsalloc_slab_info
 {
 	uint32_t	block_size;

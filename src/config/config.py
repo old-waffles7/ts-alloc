@@ -206,6 +206,9 @@ def write_global_file_header(f) -> None:
     f.write("#include\t\"../internal/common.h\"\n")
     f.write("\n")
     f.write("\n")
+    f.write("#define\tTSALLOC_MAXN_ARENAS\t{64}\n")
+    f.write("\n")
+    f.write("\n")
 
     f.write("struct tsalloc_slab_info\n")
     f.write("{\n")

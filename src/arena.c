@@ -60,7 +60,8 @@ arena_init(
         return ret;
     }
 
-    arena->cfg = arena_cfg;
+    arena->error_ctx    = error_ctx;
+    arena->cfg          = arena_cfg;
     atomic_init(&(arena->nthreads), 0);
 
     return TSALLOC_SUCCESS;

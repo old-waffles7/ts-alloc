@@ -38,6 +38,16 @@ col_init(
     col_t              *col,
     tsalloc_szclass_t   szclass
 ){
+    if (!auxil_mem)
+    {
+        set_tsalloc_error(
+            error_ctx,
+            "col_init::column.h nullptr axuil_mem argument",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS;
+    }
+
     if (szclass > tsalloc_cfg->nszclasses_slab)
     {
         set_tsalloc_error(
@@ -73,7 +83,6 @@ col_get_block(
         tsalloc_err_t   ret;
 
         ret = arena_get_batch(
-            error_ctx, 
             arena, 
             col->blocks, 
             col->szclass, 
@@ -112,12 +121,7 @@ col_put_block(
         nblocks_keep    = MAX(1, 3 * (col->capacity >> 2));
         nblocks_put     = col->capacity - nblocks_keep;
         batch           = col->blocks + nblocks_keep;
-        ret = arena_put_batch(
-            error_ctx, 
-            arena, 
-            batch,
-            nblocks_put
-        );
+        ret = arena_put_batch(arena, batch, nblocks_put);
         if (ret != TSALLOC_SUCCESS)
         {
             append_tsalloc_error_trace(error_ctx);
@@ -129,6 +133,28 @@ col_put_block(
 
     col->blocks[col->nblocks]   = block;
     col->nblocks++;
+
+    return TSALLOC_SUCCESS;
+}
+
+static inline tsalloc_err_t
+col_decay(
+    tsalloc_errctx_t   *error_ctx,
+    arena_t            *arena,
+    col_t              *col
+){
+    byte_t        **batch;
+    tsalloc_err_t   ret;
+
+    ret = arena_put_batch(arena, batch, col->epoch_min_nblocks);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    col->nblocks           -= col->epoch_min_nblocks;
+    col->epoch_min_nblocks  = col->nblocks;
 
     return TSALLOC_SUCCESS;
 }

@@ -46,4 +46,4 @@ tsalloc_szclass_t   szclass;
 
 - make config script generate function that maps pagesize -> tsalloc_cfg_t
 
-- make tcache have pointer to errorctx
+- make config script define max number of arenas (input)

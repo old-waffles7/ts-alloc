@@ -7,6 +7,8 @@
 #include    "common.h"
 #include    "error.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "os.h"
 #include    "arena.h"
 #include    "arenaconfig.h"
@@ -177,6 +179,21 @@ glob_claim(
 
     return loc_arena;
 }
+
+
+tsalloc_err_t
+glob_alloc(
+    glob_arena_t   *arena,
+    void          **dest,
+    size_t          nbytes
+);
+
+tsalloc_err_t
+glob_free(
+    glob_arena_t   *arena,
+    void          **dest,
+    size_t          nbytes
+);
 
 
 #endif  //GLOB_H

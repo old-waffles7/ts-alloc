@@ -549,11 +549,11 @@ scache_decay(
     scache_t           *cache
 ){
     tsalloc_err_t   ret1, ret2;
-    int             nclasses;
+    int             nszclasses;
 
-    ret2    = TSALLOC_SUCCESS;
-    nclasses    = cache->nclasses;
-    for (int i = 0; i < nclasses; i++)
+    ret2        = TSALLOC_SUCCESS;
+    nszclasses  = cache->nclasses;
+    for (int i = 0; i < nszclasses; i++)
     {
         ret1    = bin_decay(error_ctx, arena_cfg, &(cache->bins[i]));
         if (ret1 != TSALLOC_SUCCESS)
