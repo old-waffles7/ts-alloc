@@ -13,30 +13,15 @@
 #include    "mutex.h"
 #include    "arena.h"
 #include    "ledger.h"
+#include    "pagetrie.h"
 #include    "arenaconfig.h"
 
 #include    <stdatomic.h>
 
 
-/*
-struct global_stats
-{
-    size_t *ncached_spans;          // need to add nelements to genheap?
-    size_t *ncached_blocks;         // add nblocks to stats struct for pail_t
-    size_t *nallocs_spans;          // lifetime
-    size_t *nallocs_blocks;         // lifetime
-    size_t  nbytes_alloc_lftime;
-    size_t  nbytes_freed_lftime;
-    size_t  nbytes_alloc_c_epoch;
-    size_t  nbytes_freed_c_epoch;
-    size_t  nbytes_infrastructure;
-};
-typedef struct global_stats global_stats_t
-*/
-
 struct global_arena
 {
-    arena_t    *loc_arenas;
+    arena_t    *arenas;
 
     struct
     {
@@ -44,41 +29,22 @@ struct global_arena
         size_t  alloc;
     } epoch;
 
+    const glob_alloc_state_t   *glob_state;
+    arena_cfg_t                 arena_cfg;
+
     tsalloc_errctx_t    error_ctx;
-    arena_cfg_t         cfg;
+    pagetrie            pagetrie;
     ledger_t            ledger;
-    mutex_t             lock;
-    size_t              uid;
+    _Atomic(uint16_t)   arena_idx;
+    uint16_t            glob_uid;
     uint16_t            narenas;
-    uint16_t            arena_idx;
 };
-typedef struct global_arena glob_arena_t;
-
-static inline arena_t*
-glob_claim(
-    glob_arena_t   *arena
-){
-    arena_t    *loc_arena;
-
-    arena->arena_idx++;
-    if (arena->arena_idx == arena->narenas)
-    {
-        arena->arena_idx    = 0;
-    }
-    loc_arena   = arena->loc_arenas + arena->arena_idx;
-    (void)atomic_fetch_add(&loc_arena->nthreads, 1);
-    arena_claim(loc_arena);
-
-    return loc_arena;
-}
-
+typedef struct global_arena glob_t;
 
 tsalloc_err_t
 glob_create(
-    glob_arena_t  **dest,
-    arena_cfg_t     cfg,
-    uint16_t        narenas,
-    bool            nouse_tcache
+    const arena_cfg_t  *arena_cfg,
+    glob_arena_t      **dest
 );
 
 tsalloc_err_t
