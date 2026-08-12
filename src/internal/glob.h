@@ -10,6 +10,7 @@
 #include    "../config/tsalloc_config.h"
 
 #include    "os.h"
+#include    "mutex.h"
 #include    "arena.h"
 #include    "ledger.h"
 #include    "arenaconfig.h"
@@ -46,6 +47,7 @@ struct global_arena
     tsalloc_errctx_t    error_ctx;
     arena_cfg_t         cfg;
     ledger_t            ledger;
+    mutex_t             lock;
     size_t              uid;
     uint16_t            narenas;
     uint16_t            arena_idx;

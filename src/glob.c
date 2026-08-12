@@ -182,30 +182,9 @@ glob_init_tloc_cache(
         }
 
         tloc_cache[uid] = (void*)raw_mem;
-        ledger_push(&(glob->ledger), tloc_cache[uid]);
-    }
-
-    return TSALLOC_SUCCESS;
-}
-
-static inline tsalloc_err_t
-glob_deinit_tloc_cache(
-    const tsalloc_cfg_t    *tsalloc_cfg,
-    tcache_t   *cache    
-){
-    if (cache == nullptr)
-    {
-        return TSALLOC_SUCCESS;
-    }
-
-    size_t  nbytes;
-    int     ret;
-
-    nbytes  = sizeof(tcache_t) + tcache_auxil_mem_size(tsalloc_cfg);
-    ret     = sys_unmap(((void*)cache), nbytes);
-    if (ret == (-1))
-    {
-        return TSALLOC_UNTRACKED_FAILURE;
+        mutex_lock(&(glob->lock));
+            ledger_push(&(glob->ledger), tloc_cache[uid]);
+        mutex_unlock(&(glob->lock));
     }
 
     return TSALLOC_SUCCESS;
@@ -278,6 +257,12 @@ glob_create(
     glob            = (glob_arena_t*)raw_mem;
     arenas_addr     = raw_mem + sizeof(glob_arena_t);
     auxil_mems_addr = arenas_addr + narenas * sizeof(arena_t);
+    ret = mutex_init(nullptr, &(glob->lock));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        (void)sys_unmap(((void*)raw_mem), nbytes_req);
+        return TSALLOC_UNTRACKED_FAILURE;
+    }
     for (int i = 0; i < narenas; i++)
     {
         loc_arena   = ((arena_t*)arenas_addr) + i;
@@ -292,10 +277,14 @@ glob_create(
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            for (int j = 0; j < i; j++)
-            {
-                (void)arena_deinit(nullptr, ((arena_t*)arenas_addr) + j);
-            }
+            /*
+                for (int j = 0; j < i; j++)
+                {
+                    (void)arena_deinit(nullptr, ((arena_t*)arenas_addr) + j);
+                }
+            */
+            (void)mutex_deinit(nullptr, &(glob->lock));
+            (void)sys_unmap(((void*)raw_mem), nbytes_req);
             return TSALLOC_UNTRACKED_FAILURE;
         }
     }
