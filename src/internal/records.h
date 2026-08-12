@@ -5,10 +5,8 @@
 
 
 #include    "common.h"
-#include    "error.h"
 
 #include    "genlist.h"
-#include    "objpool.h"
 
 
 typedef struct span span_t;

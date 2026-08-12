@@ -170,6 +170,7 @@ scache_mint_span(
         &span,
         &(cache->epoch),
         szclass, 
+        cache->uid,
         TSALLOC_DEFAULT_ARG
     );
     if (ret != TSALLOC_SUCCESS)

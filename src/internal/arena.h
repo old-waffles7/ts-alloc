@@ -12,9 +12,13 @@
 #include    "arenaconfig.h"
 
 
+typedef struct global_arena glob_arena_t;
+
+
 struct arena
 {
     tsalloc_errctx_t   *error_ctx;
+    glob_arena_t       *glob;
     arena_cfg_t        *cfg;
     scache_t            scache;
     bcache_t            bcache;
@@ -154,11 +158,19 @@ arena_decay(
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+static inline void
 arena_claim(
     arena_t    *arena
 ){
     (void)atomic_fetch_add(&(arena->nthreads), 1);
+}
+
+static inline span_t*
+arena_mapto_span(
+    arena_t    *arena,
+    byte_t     *addr
+){
+    return scache_mapto_span(&(arena->scache), addr);
 }
 
 
@@ -167,6 +179,7 @@ arena_init(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     byte_t             *auxil_mem,
+    glob_arena_t       *glob,
     arena_t            *arena
 );
 

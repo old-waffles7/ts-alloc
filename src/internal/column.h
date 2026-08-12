@@ -32,8 +32,8 @@ col_auxil_mem_size(
 
 static inline tsalloc_err_t
 col_init(
+    const tsalloc_cfg_t    *tsalloc_cfg,
     tsalloc_errctx_t   *error_ctx,
-    tsalloc_cfg_t      *tsalloc_cfg,
     byte_t             *auxil_mem,
     col_t              *col,
     tsalloc_szclass_t   szclass
@@ -72,6 +72,24 @@ col_init(
 }
 
 static inline tsalloc_err_t
+col_flush(
+    tsalloc_errctx_t   *error_ctx,
+    arena_t            *arena,
+    col_t              *col
+){
+    tsalloc_err_t   ret;
+
+    ret = arena_put_batch(arena, col->blocks, col->nblocks);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
+}
+
+static inline tsalloc_err_t
 col_get_block(
     tsalloc_errctx_t   *error_ctx,
     arena_t            *arena,
@@ -81,18 +99,21 @@ col_get_block(
     if (col->nblocks ==  0)
     {
         tsalloc_err_t   ret;
+        uint16_t        nblocks_get;
 
+        nblocks_get = MAX(1, col->capacity >> 1);
         ret = arena_get_batch(
             arena, 
             col->blocks, 
             col->szclass, 
-            col->capacity
+            nblocks_get
         );
         if (ret != TSALLOC_SUCCESS)
         {
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
+        col->nblocks    = nblocks_get;
     }
 
     *dest   = col->blocks[--col->nblocks];

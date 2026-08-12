@@ -22,6 +22,7 @@
 
 
 #define     SPAN_NSTATES    3
+#define     MAXN_ARENAS     4096
 
 
 enum TSALLOC_SPAN_STATE : uint8_t
@@ -43,7 +44,7 @@ struct span
     {
         uint64_t    age         : 28;   ///< age/origin-uid of the span, max 268435456
         uint64_t    szclass     : 16;   ///< size class index, max 65535
-        uint64_t    arena       : 12;   ///< arena index, max 4096
+        uint64_t    uid         : 12;   ///< arena index, max 4096
         uint64_t    state       : 2;    ///< 0 clean -> 1 dirty -> 2 may not need -> 3 do not need
         uint64_t    is_slab     : 1;    ///< boolean flag indicating if span is a slab
         uint64_t    is_alloc    : 1;
@@ -85,6 +86,7 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
+    uint16_t            uid,
     size_t              _align
 );
 

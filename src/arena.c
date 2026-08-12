@@ -15,6 +15,7 @@ arena_init(
     tsalloc_errctx_t   *error_ctx,
     arena_cfg_t        *arena_cfg,
     byte_t             *auxil_mem,
+    glob_arena_t       *glob,
     arena_t            *arena
 ){
     if (!auxil_mem)
@@ -61,6 +62,7 @@ arena_init(
     }
 
     arena->error_ctx    = error_ctx;
+    arena->glob         = glob;
     arena->cfg          = arena_cfg;
     atomic_init(&(arena->nthreads), 0);
 

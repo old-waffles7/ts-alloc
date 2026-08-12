@@ -122,7 +122,7 @@ _pail_put_block(
 
     if (slab == nullptr)
     {
-        slab    = scache_mapto_span(spancache, ((void*)block));
+        slab    = scache_mapto_span(spancache, ((byte_t*)block));
     }
     slab_put_block(slab, block);
     

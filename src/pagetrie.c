@@ -146,7 +146,7 @@ pagetrie_insert(
 void* 
 pagetrie_lookup(
     pagetrie_t *pagetrie,
-    void       *key
+    byte_t     *key
 ){
     node_t     *root;
     uintptr_t   page_addr;
@@ -180,7 +180,7 @@ pagetrie_lookup(
 bool 
 pagetrie_remove(
     pagetrie_t *pagetrie,
-    void       *key,
+    byte_t     *key,
     size_t      nbytes                                                
 ){
     if (nbytes == 0)                                                    

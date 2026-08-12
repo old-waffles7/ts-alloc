@@ -19,6 +19,7 @@ span_create(
     span_t            **dest,
     uint32_t           *epoch,
     tsalloc_szclass_t   szclass,
+    uint16_t            uid,
     size_t              _align
 ){
     span_t         *span;
@@ -67,6 +68,7 @@ span_create(
     *span   = (span_t){
         .flags.age      = *epoch,
         .flags.szclass  = szclass,
+        .flags.uid      = uid,
         .addr           = mem,
         .nbytes         = nbytes,
         .record         = record
@@ -153,14 +155,13 @@ tsalloc_err_t span_split(
         return ret;
     }
 
-    *split          = (span_t){0};
-    split->flags    = (*origin)->flags;
-    split->addr     = ((*origin)->addr) + origin_nbytes;
-    split->nbytes   = split_nbytes;
-    
-    (*origin)->nbytes   = origin_nbytes;
-    
-    split->flags.szclass        = szclass;
+    *split                  = (span_t){0};
+    split->flags            = (*origin)->flags;
+    split->addr             = ((*origin)->addr) + origin_nbytes;
+    split->nbytes           = split_nbytes;
+    split->flags.szclass    = szclass;
+
+    (*origin)->nbytes           = origin_nbytes;
     (*origin)->flags.szclass    = tsconfig_get_szclass((arena_cfg->tsalloc_cfg), origin_nbytes).szclass;
     
     *dest   = split;

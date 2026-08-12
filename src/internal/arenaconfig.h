@@ -118,7 +118,7 @@ struct arena_config
     
     tsalloc_szclass_t   default_new_span_szclass;
     size_t              auxil_align;    ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-
+   
     bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
     bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
 };

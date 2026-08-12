@@ -79,7 +79,7 @@ class configuration:
 
     def get_slab_infos(
         self, 
-        sizes       : list
+        sizes   : list
     ) -> list:
         infos = []
         
@@ -88,7 +88,7 @@ class configuration:
         
         prev_nblocks = float('inf')
         
-        for block_size in sizes:
+        for i,block_size in enumerate(sizes):
             target_n    = max(min_blocks, target_bytes // block_size)
             
             req_bytes   = target_n * block_size
@@ -97,7 +97,7 @@ class configuration:
             nblocks     = slab_size // block_size
             nblocks     = min(nblocks, prev_nblocks)
             
-            infos.append((block_size, slab_size, nblocks))
+            infos.append((block_size, slab_size, nblocks, i))
             prev_nblocks = nblocks
             
         return infos
@@ -206,7 +206,7 @@ def write_global_file_header(f) -> None:
     f.write("#include\t\"../internal/common.h\"\n")
     f.write("\n")
     f.write("\n")
-    f.write("#define\tTSALLOC_MAXN_ARENAS\t{64}\n")
+    f.write("#define\tTSALLOC_MAXN_GLOBS\t64\n")
     f.write("\n")
     f.write("\n")
 
@@ -215,6 +215,7 @@ def write_global_file_header(f) -> None:
     f.write("\tuint32_t\tblock_size;\n")
     f.write("\tuint32_t\tslab_size;\n")
     f.write("\tuint32_t\tnblocks;\n")
+    f.write("\tuint32_t\tszclass;\n")
     f.write("};\n")
     f.write("typedef\tstruct tsalloc_slab_info\ttsalloc_slab_info_t;\n")
     f.write("\n")
@@ -273,7 +274,7 @@ def generate_config_c_block(
 
     out += f"static const tsalloc_slab_info_t\tslab_infos_{cfg.page_size}[{slab_count}]\t= {{\n"
     for info in slab_infos:
-        out += f"    {{{info[0]}, {info[1]}, {info[2]}}},\n"
+        out += f"    {{{info[0]}, {info[1]}, {info[2]}, {info[3]}}},\n"
     out += "};\n\n"
 
     out += f"static const uint32_t\ttcache_info_{cfg.page_size}[{slab_count}]\t\t\t= {{\n"

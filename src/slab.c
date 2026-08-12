@@ -51,7 +51,8 @@ tsalloc_err_t slab_init(
     *metadata = (slab_t){
         .bitmap         = bitmap,
         .nbytes_block   = slabinfo->block_size,
-        .nblocks_free   = slabinfo->nblocks
+        .nblocks_free   = slabinfo->nblocks,
+        .szclass        = slabinfo->szclass
     };
     span->flags.is_slab = true;
     span->slab_metadata = metadata;

@@ -104,6 +104,21 @@ tcache_init(
     return TSALLOC_SUCCESS;
 }
 
+static inline void
+tcache_flush(
+    tcache_t   *cache
+){
+    col_t              *column;
+    tsalloc_szclass_t   nszclasses;
+    
+    nszclasses  = cache->nszclasses;
+    for (tsalloc_szclass_t i = 0; i < nszclasses; i++)
+    {
+        column  = cache->columns + i;
+        (void)col_flush(nullptr, cache->loc_arena, column);
+    }
+}
+
 static inline tsalloc_err_t
 tcache_get_block(
     tsalloc_errctx_t   *error_ctx,

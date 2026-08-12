@@ -36,6 +36,7 @@ struct span_cache
     mutex_t     lock;       ///< mutex for thread-safe access
     size_t      nclasses;   ///< number of size classes managed by the cache
     uint32_t    epoch;      ///< cache-global epoch for initializing ages of newly minteed spans
+    uint16_t    uid;        ///< uid of owning arena
 };
 typedef struct span_cache   scache_t;
 
@@ -76,7 +77,7 @@ scache_auxil_mem_size(
 static inline span_t*
 scache_mapto_span(
     scache_t   *cache,
-    void       *addr
+    byte_t     *addr
 ){
     return ((span_t*)pagetrie_lookup(&(cache->pagetrie), addr));
 }
