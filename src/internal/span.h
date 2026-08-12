@@ -1,4 +1,5 @@
-/*
+
+/**
  * @file    span.h
  * @brief   definitions of functionalities for managing memory spans
  */
@@ -11,6 +12,8 @@
 
 #include    "common.h"
 #include    "error.h"
+
+#include    "../config/tsalloc_config.h"
 
 #include    "slab.h"
 #include    "bucket.h"
@@ -34,22 +37,21 @@ enum TSALLOC_SPAN_STATE : uint8_t
 typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
 
 
-/*
+/**
  * @struct  span
  * @brief   represents a contiguous region of memory managed by the arena
  */
 struct span
 {
-    struct 
+    struct
     {
-        uint64_t    age         : 28;   ///< age/origin-uid of the span, max 268435456
-        uint64_t    szclass     : 16;   ///< size class index, max 65535
-        uint64_t    uid         : 12;   ///< arena index, max 4096
-        uint64_t    state       : 2;    ///< 0 clean -> 1 dirty -> 2 may not need -> 3 do not need
-        uint64_t    is_slab     : 1;    ///< boolean flag indicating if span is a slab
+        uint64_t    age         : 28;
+        uint64_t    szclass     : 16;
+        uint64_t    arena_uid   : 12;
+        uint64_t    state       : 2;
+        uint64_t    is_slab     : 1;
         uint64_t    is_alloc    : 1;
-        uint64_t    is_dumpable : 1;    // !maybe remove?add do/dont forked, pin flags?
-        uint64_t    reserved    : 3;
+        uint64_t    reserved    : 4;
     } flags;
 
     union
@@ -57,62 +59,65 @@ struct span
         bucket_coord_t      bucket;     ///< coordinates for bucket placement
         registry_coord_t    registry;   ///< coordinates for registry placement
     } coord;
-    
+
     record_t   *record;
-    byte_t     *addr;               ///< pointer to the base address of the span memory
-    slab_t     *slab_metadata;      ///< pointer to slab metadata (if is_slab is set)
-    size_t      nbytes;             ///< total size of the span in bytes
+    byte_t     *addr;
+    slab_t     *slabmeta;
+    size_t      nbytes;
 };
 typedef struct span span_t;
 
-/*
+/**
  * @brief   creates and maps a new memory span
  *
- * @param   error_ctx   pointer to the error context struct
- * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   glob_state   pointer to the global allocator state
+ * @param   arena_cfg    pointer to the arena configuration struct
+ * @param   error_ctx    pointer to the error context struct
  * @param   spanpool    pointer to the object pool for span metadata
  * @param   dest        double pointer to output the newly created span
- * @param   epoch       age/uid of newly minted span 
  * @param   szclass     size class of the span being created
+ * @param   epoch       pointer to the epoch used as the age of the newly minted span
+ * @param   arena_uid   unique identifier of the arena owning the span
  * @param   _align      memory alignment requirement
  *
  * @return  status code representing success or failure
  */
 tsalloc_err_t
 span_create(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    span_t            **dest,
-    uint32_t           *epoch,
-    tsalloc_szclass_t   szclass,
-    uint16_t            uid,
-    size_t              _align
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t            *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                    **dest,
+    ts_szclass_t                szclass,
+    uint32_t                   *epoch,
+    uint16_t                    arena_uid,
+    size_t                      _align
 );
 
-/*
+/**
  * @brief   destroys a memory span and unmaps its backing memory
  *
- * @param   error_ctx       pointer to the error context struct
- * @param   arena_config    pointer to the arena configuration struct
- * @param   spanpool        pointer to the object pool for span metadata
- * @param   span            pointer to the span to destroy
+ * @param   arena_cfg    pointer to the arena configuration struct
+ * @param   error_ctx   pointer to the error context struct
+ * @param   spanpool    pointer to the object pool for span metadata
+ * @param   span        pointer to the span to destroy
  *
  * @return  status code representing success or failure
  */
 tsalloc_err_t
 span_destroy(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *span
 );
 
-/*
+/**
  * @brief   splits a span into a smaller span and a remainder
  *
+ * @param   glob_state   pointer to the global allocator state
  * @param   error_ctx   pointer to the error context struct
- * @param   arena_cfg   pointer to the arena configuration struct
  * @param   spanpool    pointer to the object pool for span metadata
  * @param   origin      double pointer to the original span to split (updated to remainder)
  * @param   dest        double pointer to output the newly split span
@@ -122,57 +127,57 @@ span_destroy(
  */
 tsalloc_err_t
 span_split(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    span_t            **origin,
-    span_t            **dest,
-    tsalloc_szclass_t   szclass
+    const glob_alloc_state_t   *glob_state,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                    **origin,
+    span_t                    **dest,
+    ts_szclass_t                szclass
 );
 
-/*
+/**
  * @brief   coalesces two physically adjacent free spans into a single span
  *
- * @param   error_ctx   pointer to the error context struct
- * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   glob_state   pointer to the global allocator state
+ * @param   arena_cfg    pointer to the arena configuration struct
+ * @param   error_ctx    pointer to the error context struct
  * @param   spanpool    pointer to the object pool for span metadata
  * @param   records     pointer to the list that records all minted spans
  * @param   lspan       pointer to the left span (lower memory address)
  * @param   rspan       pointer to the right span (higher memory address)
  * @param   dest        double pointer to output the coalesced span
- *
- * @return  status code representing success or failure
  */
-tsalloc_err_t
+void
 span_coalesce(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    records_t          *records,
-    span_t             *lspan,
-    span_t             *rspan,
-    span_t            **dest
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    records_t                  *records,
+    span_t                     *lspan,
+    span_t                     *rspan,
+    span_t                    **dest
 );
 
-/*
+/**
  * @brief   mutates the state of a span
  *
- * @param   error_ctx   pointer to the error context struct
- * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   arena_cfg    pointer to the arena configuration struct
+ * @param   error_ctx    pointer to the error context struct
  * @param   span        pointer to the span to be mutated
- * @param   state       flag corresponding to state to me implemented
+ * @param   state       flag corresponding to state to be implemented
  *
  * @return  status code representing success or failure
  */
 tsalloc_err_t
 span_set_state(
+    const arena_cfg_t      *arena_cfg,
     tsalloc_errctx_t       *error_ctx,
-    arena_cfg_t            *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
 );
 
-/*
+/**
  * @brief   retrieves the left and right adjacent spans from the pagetrie
  *
  * @param   pagetrie    pointer to the pagetrie
@@ -182,11 +187,45 @@ span_set_state(
  */
 void
 span_get_adj(
-    pagetrie_t *pagetrie,
-    span_t     *span,
-    span_t    **dest_lspan,
-    span_t    **dest_rspan
+    const pagetrie_t   *pagetrie,
+    const span_t       *span,
+    span_t            **dest_lspan,
+    span_t            **dest_rspan
 );
+
+/**
+ * @brief   determines whether two adjacent spans can be merged
+ *
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   lspan       pointer to the left span (lower memory address)
+ * @param   rspan       pointer to the right span (higher memory address)
+ *
+ * @return  true if the spans can be merged, otherwise false
+ */
+static inline bool
+span_can_merge(
+    const arena_cfg_t  *arena_cfg,
+    span_t             *lspan,
+    span_t             *rspan
+){
+    if ((!lspan) || (!rspan))
+    {
+        return false;
+    }
+    if ((lspan->flags.is_alloc) || (rspan->flags.is_alloc))
+    {
+        return false;
+    }
+    if (lspan->flags.arena_uid != rspan->flags.arena_uid)
+    {
+        return false;
+    }
+    if ((lspan->addr + lspan->nbytes) != (rspan->addr))
+    {
+        return false;
+    }
+    return arena_cfg->allow_cross_origin_merge || (lspan->flags.age == rspan->flags.age);
+}
 
 
 #endif  //SPAN_H

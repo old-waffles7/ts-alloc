@@ -13,14 +13,15 @@
 
 tsalloc_err_t
 span_create(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    span_t            **dest,
-    uint32_t           *epoch,
-    tsalloc_szclass_t   szclass,
-    uint16_t            uid,
-    size_t              _align
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                    **dest,
+    ts_szclass_t                szclass,
+    uint32_t                   *epoch,
+    uint16_t                    arena_uid,
+    size_t                      _align
 ){
     span_t         *span;
     tsalloc_err_t   ret;
@@ -35,10 +36,10 @@ span_create(
     void   *mem;
     size_t  nbytes;
 
-    nbytes  = tsconfig_get_nbytes_szclass((arena_cfg->tsalloc_cfg), szclass, false);
+    nbytes  = tsconfig_get_nbytes_szclass(glob_state, szclass, false);
     mem     = arena_cfg->auxil_map(
         arena_cfg->extra, 
-        (_align != TSALLOC_DEFAULT_ARG)? _align : arena_cfg->auxil_align, 
+        (_align != TSALLOC_DEFAULT_ARG)? _align : arena_cfg->pagesize, 
         nbytes
     );
     if (!mem)
@@ -66,12 +67,12 @@ span_create(
     }
 
     *span   = (span_t){
-        .flags.age      = *epoch,
-        .flags.szclass  = szclass,
-        .flags.uid      = uid,
-        .addr           = mem,
-        .nbytes         = nbytes,
-        .record         = record
+        .flags.age          = *epoch,
+        .flags.szclass      = szclass,
+        .flags.arena_uid    = arena_uid,
+        .addr               = mem,
+        .nbytes             = nbytes,
+        .record             = record
     };
     *epoch += 1;
 
@@ -82,8 +83,8 @@ span_create(
 
 tsalloc_err_t
 span_destroy(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     objpool_t          *spanpool,
     span_t             *span
 ){
@@ -112,17 +113,18 @@ span_destroy(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t span_split(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    span_t            **origin,
-    span_t            **dest,
-    tsalloc_szclass_t   szclass
-) {
+tsalloc_err_t 
+span_split(
+    const glob_alloc_state_t   *glob_state,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                    **origin,
+    span_t                    **dest,
+    ts_szclass_t                szclass
+){
     size_t  split_nbytes;
     
-    split_nbytes    = tsconfig_get_nbytes_szclass((arena_cfg->tsalloc_cfg), szclass, false);
+    split_nbytes    = tsconfig_get_nbytes_szclass(glob_state, szclass, false);
 
     if (((*origin)->nbytes) < split_nbytes)
     {
@@ -155,48 +157,41 @@ tsalloc_err_t span_split(
         return ret;
     }
 
-    *split                  = (span_t){0};
-    split->flags            = (*origin)->flags;
-    split->addr             = ((*origin)->addr) + origin_nbytes;
-    split->nbytes           = split_nbytes;
-    split->flags.szclass    = szclass;
+    *split                  = (span_t){
+        .flags          = (*origin)->flags,
+        .flags.szclass  = szclass,
+        .addr           = ((*origin)->addr) + origin_nbytes,
+        .nbytes         = split_nbytes
+    };
 
     (*origin)->nbytes           = origin_nbytes;
-    (*origin)->flags.szclass    = tsconfig_get_szclass((arena_cfg->tsalloc_cfg), origin_nbytes).szclass;
+    (*origin)->flags.szclass    = tsconfig_get_szclass(glob_state, origin_nbytes).szclass;
     
     *dest   = split;
 
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t span_coalesce(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    objpool_t          *spanpool,
-    records_t          *records,
-    span_t             *lspan,
-    span_t             *rspan,
-    span_t            **dest
-) {
+void 
+span_coalesce(
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    records_t                  *records,
+    span_t                     *lspan,
+    span_t                     *rspan,
+    span_t                    **dest
+){
     if (!lspan)
     {
         *dest   = rspan;
-        return TSALLOC_SUCCESS;
+        return;
     }
     if (!rspan)
     {
         *dest   = lspan;
-        return TSALLOC_SUCCESS;
-    }
-
-    if ((lspan->addr + lspan->nbytes) != (rspan->addr))
-    {
-        set_tsalloc_error(
-            error_ctx,
-            "span_coalesce::span.c memory address of lspan must precede that of rspan",
-            TSALLOC_INVALID_ARGS
-        );
-        return TSALLOC_INVALID_ARGS; 
+        return;
     }
 
     if (arena_cfg->unmap_on_termination) 
@@ -219,11 +214,11 @@ tsalloc_err_t span_coalesce(
         }
     }
 
-    size_t              nbytes;
-    tsalloc_szclass_t   szclass; 
+    size_t          nbytes;
+    ts_szclass_t    szclass; 
 
     nbytes  = (lspan->nbytes) + (rspan->nbytes);
-    szclass = tsconfig_get_szclass((arena_cfg->tsalloc_cfg), nbytes).szclass;
+    szclass = tsconfig_get_szclass(glob_state, nbytes).szclass;
 
     lspan->flags.age        = MIN((lspan->flags.age), (rspan->flags.age));
     lspan->flags.szclass    = szclass;
@@ -233,13 +228,12 @@ tsalloc_err_t span_coalesce(
     objpool_free(spanpool, ((void*)rspan));
 
     *dest = lspan;
-    return TSALLOC_SUCCESS;
 }
 
 tsalloc_err_t
 span_set_state(
+    const arena_cfg_t      *arena_cfg,
     tsalloc_errctx_t       *error_ctx,
-    arena_cfg_t            *arena_cfg,
     span_t                 *span,
     tsalloc_span_state_t    state
 ){
@@ -296,10 +290,10 @@ span_set_state(
 
 void
 span_get_adj(
-    pagetrie_t *pagetrie,
-    span_t     *span,
-    span_t    **dest_lspan,
-    span_t    **dest_rspan
+    const pagetrie_t   *pagetrie,
+    const span_t       *span,
+    span_t            **dest_lspan,
+    span_t            **dest_rspan
 ){
     void *l_addr;
     void *r_addr;
