@@ -8,16 +8,17 @@
 #include    "internal/objpool.h"
 
 
-tsalloc_err_t slab_init(
+tsalloc_err_t 
+slab_init(
     const tsalloc_slab_info_t  *slabinfo,
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *slabpool,
-    span_t             *span
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *slabpool,
+    span_t                     *span
 ){
-    slab_t         *metadata;
+    slab_t         *slabmeta;
     tsalloc_err_t   ret;
 
-    ret = objpool_alloc(error_ctx, slabpool, ((void*)(&metadata)));
+    ret = objpool_alloc(error_ctx, slabpool, ((void*)(&slabmeta)));
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(error_ctx);
@@ -29,7 +30,7 @@ tsalloc_err_t slab_init(
     uint32_t    nwords;
     uint32_t    remainder;
 
-    bitmap  = ((byte_t*)metadata) + sizeof(slab_t);
+    bitmap  = ((byte_t*)slabmeta) + sizeof(slab_t);
     memset(bitmap, 0, slabpool->nbytes_slab - sizeof(slab_t));
 
     words   = (uint64_t*)bitmap;
@@ -48,30 +49,37 @@ tsalloc_err_t slab_init(
         words[nwords - 1]   = (1ULL << remainder) - 1;
     }
 
-    *metadata = (slab_t){
+    *slabmeta = (slab_t){
         .bitmap         = bitmap,
+        .szclass        = slabinfo->szclass,
         .nbytes_block   = slabinfo->block_size,
-        .nblocks_free   = slabinfo->nblocks,
-        .szclass        = slabinfo->szclass
+        .nblocks_free   = slabinfo->nblocks
     };
     span->flags.is_slab = true;
-    span->slab_metadata = metadata;
+    span->slabmeta      = slabmeta;
 
     return TSALLOC_SUCCESS;
 }
 
-void slab_deinit(
+void 
+slab_deinit(
     objpool_t  *slabpool,
     span_t     *span
 ){
     span->flags.is_slab = false;
-    objpool_free(slabpool, ((void*)(span->slab_metadata)));
+    objpool_free(slabpool, ((void*)(span->slabmeta)));
 }
 
-byte_t* slab_get_block(
+byte_t* 
+slab_get_block(
     span_t *span
 ){
-    slab_t     *slab;
+    if (span->slabmeta->nblocks_free == 0)
+    {
+        return nullptr;
+    }
+
+    slab_t     *slabmeta;
     byte_t     *base_mem;
     uint64_t   *bitmap;
     uint64_t    word_idx;
@@ -79,9 +87,9 @@ byte_t* slab_get_block(
     uint64_t    bit_idx;
     uint64_t    block_idx;
 
-    slab        = span->slab_metadata;
+    slabmeta    = span->slabmeta;
     base_mem    = span->addr;
-    bitmap      = (uint64_t*)(slab->bitmap);
+    bitmap      = (uint64_t*)(slabmeta->bitmap);
     word_idx    = 0;
 
     while ((word = bitmap[word_idx]) == 0ULL)
@@ -93,12 +101,13 @@ byte_t* slab_get_block(
     block_idx   = (word_idx * 64) + bit_idx;
 
     bitmap[word_idx] &= ~(1ULL << bit_idx);
-    slab->nblocks_free--;
+    slabmeta->nblocks_free--;
 
-    return (byte_t*)(base_mem + (block_idx * slab->nbytes_block));
+    return (byte_t*)(base_mem + (block_idx * slabmeta->nbytes_block));
 }
 
-void slab_put_block(
+void 
+slab_put_block(
     span_t *span,
     void   *block
 ){
@@ -109,7 +118,7 @@ void slab_put_block(
     uint64_t    word_idx;
     uint64_t    bit_idx;
 
-    slab        = span->slab_metadata;
+    slab        = span->slabmeta;
     bitmap      = (uint64_t*)(slab->bitmap);
 
     offset      = (uintptr_t)block - (uintptr_t)(span->addr);

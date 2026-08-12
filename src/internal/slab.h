@@ -26,10 +26,10 @@ typedef struct span span_t;
  */
 struct slab
 {
-    byte_t             *bitmap;         ///< pointer to the bitmap tracking block allocation
-    uint16_t            nbytes_block;   ///< size of an individual block within the slab
-    uint16_t            nblocks_free;   ///< number of currently free blocks in the slab
-    tsalloc_szclass_t   szclass;        ///< szclass of slab blocks
+    byte_t         *bitmap;      
+    ts_szclass_t    szclass; 
+    uint16_t        nbytes_block; 
+    uint16_t        nblocks_free;
 };
 typedef struct slab slab_t;
 
@@ -44,11 +44,12 @@ typedef struct slab slab_t;
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t slab_init(
+tsalloc_err_t 
+slab_init(
     const tsalloc_slab_info_t  *slabinfo,
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *slabpool,
-    span_t             *span
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *slabpool,
+    span_t                     *span
 );
 
 /*
