@@ -12,6 +12,9 @@
 #include    "_tsalloc_config.h"
 
 
+#define     TSALLOC_ALLOC_MAX   ((1ULL << 62))  // 4.6 ExiB
+
+
 typedef int32_t tsalloc_szclass_t;
 
 /*
@@ -61,7 +64,7 @@ tsconfig_get_szclass(
         .isslab = (-1)
     };
 
-    if (nbytes == 0 || nbytes > (cfg->alloc_max))
+    if (nbytes == 0 || (nbytes > TSALLOC_ALLOC_MAX))
     {
         return req;
     }
@@ -88,12 +91,12 @@ tsconfig_get_szclass(
 
     req_nbytes          = nbytes - 1;
     page_shift          = (size_t)__builtin_ctzll(cfg->page_size);
-    base_shift          = page_shift + (cfg->epoch_shift);
+    base_shift          = page_shift + (cfg->steps_per_pow2_shift);
     epoch               = 63 - __builtin_clzll((req_nbytes >> base_shift) + 1);
     epoch_base_nbytes   = (1ULL << base_shift) * ((1ULL << epoch) - 1);
     offset              = (req_nbytes - epoch_base_nbytes) >> (page_shift + epoch);
 
-    req.szclass = (epoch << (cfg->epoch_shift)) + offset;
+    req.szclass = (epoch << (cfg->steps_per_pow2_shift)) + offset;
     req.isslab  = false;
     
     return req;
@@ -177,7 +180,7 @@ tsconfig_get_nbytes_span_szclass(
     return cfg->szclass_max_nbytes_span[szclass];
 }
 
-static inline tsalloc_cfg_t*
+static inline const tsalloc_cfg_t*
 tsconfig_get_cfg(
     size_t  pagesize
 );
