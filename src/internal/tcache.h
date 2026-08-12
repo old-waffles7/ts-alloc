@@ -12,20 +12,22 @@
 #include    "glob.h"
 #include    "arena.h"
 #include    "column.h"
+#include    "ledger.h"
 #include    "arenaconfig.h"
 
 
 struct thread_loc_cache
 {
-    col_t      *columns;
-    arena_t    *loc_arena;
-    size_t      nszclasses; 
+    col_t          *columns;
+    arena_t        *loc_arena;
+    ledger_coord_t  coord;
+    size_t          nszclasses; 
 };
 typedef struct thread_loc_cache tcache_t;
 
 static inline size_t
 tcache_auxil_mem_size(
-    tsalloc_cfg_t  *tsalloc_cfg
+    const tsalloc_cfg_t    *tsalloc_cfg
 ){
     static size_t   nbytes;
 
@@ -47,8 +49,8 @@ tcache_auxil_mem_size(
 
 static inline tsalloc_err_t
 tcache_init(
+    const tsalloc_cfg_t    *tsalloc_cfg,
     tsalloc_errctx_t   *error_ctx,
-    tsalloc_cfg_t      *tsalloc_cfg,
     byte_t             *auxil_mem,
     glob_arena_t       *global,
     tcache_t           *cache
@@ -57,7 +59,7 @@ tcache_init(
     {
         set_tsalloc_error(
             error_ctx,
-            "tcache_init::tcache.h.h nullptr axuil_mem argument",
+            "tcache_init::tcache.h nullptr axuil_mem argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -80,8 +82,8 @@ tcache_init(
         col_auxil_mem   = auxil_mem_addr;
 
         ret = col_init(
+            tsalloc_cfg,
             error_ctx, 
-            tsalloc_cfg, 
             col_auxil_mem, 
             column, 
             i
