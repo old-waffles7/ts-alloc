@@ -1,4 +1,10 @@
 
+/**
+ * @file    bin.h
+ * @brief   definitions of functionalities for managing memory bins
+ */
+
+ 
 #pragma once
 #ifndef BIN_H
 #define BIN_H
@@ -7,50 +13,84 @@
 #include    "common.h"
 #include    "error.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "span.h"
 #include    "mutex.h"
 #include    "bucket.h"
 #include    "arenaconfig.h"
 
 
-struct bin 
+/**
+ * @struct  bin
+ * @brief   represents a collection of spans belonging to the same size class
+ */
+struct bin
 {
-    bucket_t            buckets[SPAN_NSTATES];
-    tsalloc_szclass_t   szclass;
-    uint32_t            nspans;
-    uint32_t            epoch_min_nspans;
-    byte_t              bitmap; // bit length >= SPAN_NSTATES
+    bucket_t        buckets[SPAN_NSTATES];
+    ts_szclass_t    szclass;
+    size_t          nspans;
+    size_t          epoch_min_nspans;
+    byte_t          bitmap; // bit length >= SPAN_NSTATES
 };
 typedef struct bin  bin_t;
 
+/**
+ * @brief   initializes a bin for a given size class
+ *
+ * @param   bin     pointer to the bin to initialize
+ * @param   szclass size class associated with the bin
+ */
 static inline void
 bin_init(
-    bin_t              *bin,
-    tsalloc_szclass_t   szclass
+    bin_t          *bin,
+    ts_szclass_t    szclass
 ){
-    *bin            = (bin_t){0};
-    bin->szclass    = szclass;
+    *bin    = (bin_t){
+        .szclass    = szclass
+    };
 }
 
-static inline bool 
+/**
+ * @brief   checks whether the bin contains no spans
+ *
+ * @param   bin pointer to the bin to check
+ *
+ * @return  `true` if the bin contains no spans, otherwise false
+ */
+static inline bool
 bin_isempty(
     bin_t  *bin
 ){
     return (bin->bitmap == 0);
 }
 
+/**
+ * @brief   retrieves the index of the first non-empty bucket
+ *
+ * @param   bitmap  bitmap representing non-empty buckets
+ *
+ * @return  index of the first non-empty bucket, or `-1` if all buckets are empty
+ */
 static inline int16_t
 bin_first_nonempty_bucket(
     uint8_t bitmap
 ){
-    if (bitmap == 0) 
+    if (bitmap == 0)
     {
-        return -1; 
+        return -1;
     }
-    
+
     return __builtin_ctz(((uint32_t)bitmap));
 }
 
+/**
+ * @brief   removes and returns a span from the first non-empty bucket
+ *
+ * @param   bin pointer to the bin from which to retrieve the span
+ *
+ * @return  pointer to the retrieved span, or `nullptr` if the bin is empty
+ */
 static inline span_t*
 bin_get_span(
     bin_t  *bin
@@ -66,6 +106,7 @@ bin_get_span(
     span_t *span;
 
     span    = bucket_pop(&(bin->buckets[idx]));
+
     if (bin->buckets[idx].root == nullptr) 
     {
         bin->bitmap    &= ~(1 << idx);
@@ -80,10 +121,20 @@ bin_get_span(
     return span;
 }
 
+/**
+ * @brief   inserts a span into the appropriate bucket in the bin
+ *
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   error_ctx   pointer to the error context struct
+ * @param   bin         pointer to the bin receiving the span
+ * @param   span        pointer to the span being inserted
+ *
+ * @return  status code representing success or failure
+ */
 static inline tsalloc_err_t
 bin_put_span(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     bin_t              *bin,
     span_t             *span
 ){
@@ -106,9 +157,10 @@ bin_put_span(
     {
         tsalloc_err_t   ret;
 
+        // Changed to match the current span_set_state() signature.
         ret = span_set_state(
-            error_ctx,
             arena_cfg,
+            error_ctx,
             span,
             TSALLOC_SPAN_DIRTY
         );
@@ -125,6 +177,12 @@ bin_put_span(
     return TSALLOC_SUCCESS;
 }
 
+/**
+ * @brief   removes a span from its current state bucket
+ *
+ * @param   bin     pointer to the bin containing the span
+ * @param   span    pointer to the span being removed
+ */
 static inline void
 bin_remove_span(
     bin_t  *bin,
@@ -139,10 +197,20 @@ bin_remove_span(
         bin->bitmap    &= ~(1 << state);
     }
 }
+
+/**
+ * @brief   decays free spans in the bin by marking them as retained
+ *
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   error_ctx   pointer to the error context struct
+ * @param   bin         pointer to the bin being decayed
+ *
+ * @return  status code representing success or failure
+ */
 static inline tsalloc_err_t
 bin_decay(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     bin_t              *bin
 ){
     if (!arena_cfg->auxil_madvise)
@@ -154,7 +222,7 @@ bin_decay(
     auxil_madvise_fn    auxil_madvise;
     tsalloc_err_t       ret1, ret2;
     uint32_t            nspans_decay;
-    
+
     auxil_madvise   = arena_cfg->auxil_madvise;
     nspans_decay    = bin->epoch_min_nspans; 
     ret2            = TSALLOC_SUCCESS;
@@ -172,9 +240,10 @@ bin_decay(
             break;
         }
 
+        // Changed to match the current span_set_state() signature.
         ret1    = span_set_state(
-            error_ctx,
             arena_cfg,
+            error_ctx,
             span,
             TSALLOC_SPAN_RETAINED
         );
@@ -185,9 +254,10 @@ bin_decay(
             return ret1;
         }
 
+        // Changed to match the current bin_put_span() signature.
         ret1 = bin_put_span(
+            arena_cfg,
             error_ctx, 
-            arena_cfg, 
             bin, 
             span
         );
