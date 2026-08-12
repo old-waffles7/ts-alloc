@@ -7,6 +7,8 @@
 #include    "common.h"
 #include    "error.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "scache.h"
 #include    "bcache.h"
 #include    "arenaconfig.h"
@@ -17,12 +19,13 @@ typedef struct global_arena glob_arena_t;
 
 struct arena
 {
+    const glob_arena_t         *glob;
+    const glob_alloc_state_t   *glob_state;
+    const arena_cfg_t          *arena_cfg;
+
     tsalloc_errctx_t   *error_ctx;
-    glob_arena_t       *glob;
-    arena_cfg_t        *cfg;
     scache_t            scache;
     bcache_t            bcache;
-    _Atomic(size_t)     nthreads;
 };
 typedef struct arena    arena_t;
 
@@ -55,7 +58,7 @@ arena_put_batch(
     {
         ret1    = bcache_put_block(
             arena->error_ctx, 
-            arena->cfg, 
+            arena->arena_cfg, 
             &(arena->bcache), 
             batch[i]
         );
@@ -71,14 +74,14 @@ arena_put_batch(
 
 static inline tsalloc_err_t
 arena_put_span(
-    arena_t            *arena,
-    span_t             *span
+    arena_t    *arena,
+    span_t     *span
 ){
     tsalloc_err_t   ret;
 
     ret = scache_put_span(
         arena->error_ctx, 
-        arena->cfg, 
+        arena->arena_cfg, 
         &(arena->scache), 
         span
     );
@@ -93,16 +96,16 @@ arena_put_span(
 
 static inline tsalloc_err_t
 arena_get_batch(
-    arena_t            *arena,
-    byte_t            **dest,
-    tsalloc_szclass_t   szclass,
-    size_t              nblocks
+    arena_t        *arena,
+    span_t        **dest,
+    ts_szclass_t    szclass,
+    size_t          nblocks
 ){
     tsalloc_err_t   ret;
 
     ret = bcache_get_batch(
         arena->error_ctx, 
-        arena->cfg, 
+        arena->arena_cfg, 
         &(arena->bcache), 
         dest, 
         szclass, 
@@ -119,16 +122,16 @@ arena_get_batch(
 
 static inline tsalloc_err_t
 arena_get_span(
-    arena_t            *arena,
-    span_t            **dest,
-    tsalloc_szclass_t   szclass
+    arena_t        *arena,
+    span_t        **dest,
+    ts_szclass_t    szclass
 ){
     tsalloc_err_t   ret;
-
+    
     ret = scache_get_span(
         nullptr, 
         arena->error_ctx, 
-        arena->cfg, 
+        arena->arena_cfg, 
         &(arena->scache), 
         dest, 
         szclass
@@ -148,7 +151,7 @@ arena_decay(
 ){
     tsalloc_err_t   ret;
 
-    ret = scache_decay(arena->error_ctx, arena->cfg, &(arena->scache));
+    ret = scache_decay(arena->error_ctx, arena->arena_cfg, &(arena->scache));
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(arena->error_ctx);
@@ -156,13 +159,6 @@ arena_decay(
     }
 
     return TSALLOC_SUCCESS;
-}
-
-static inline void
-arena_claim(
-    arena_t    *arena
-){
-    (void)atomic_fetch_add(&(arena->nthreads), 1);
 }
 
 static inline span_t*
@@ -176,17 +172,17 @@ arena_mapto_span(
 
 tsalloc_err_t
 arena_init(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    byte_t             *auxil_mem,
-    glob_arena_t       *glob,
-    arena_t            *arena
+    const glob_arena_t         *glob,
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    byte_t                     *auxil_mem,
+    arena_t                    *arena
 );
 
 tsalloc_err_t
 arena_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena
+    arena_t    *arena
 );
 
 
