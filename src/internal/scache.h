@@ -132,11 +132,10 @@ scache_destroy(
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+void
 scache_put_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *span
 );
