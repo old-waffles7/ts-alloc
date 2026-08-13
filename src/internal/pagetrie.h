@@ -20,8 +20,9 @@
  */
 struct pagetrie
 {
-    void       *root;       ///< pointer to the level 1 root node
-    objpool_t   nodepool;   ///< object pool for allocating interior and leaf nodes
+    void       *root;    
+    mutex_t     lock;
+    objpool_t   nodepool; 
 };
 
 typedef struct pagetrie pagetrie_t;
@@ -43,12 +44,16 @@ pagetrie_init(
 
 /*
  * @brief   destroys the pagetrie and frees all associated nodes
- * 
+ *
+ * @param   error_ctx   pointer to the error context struct
  * @param   pagetrie    pointer to the pagetrie to deinitialize
+ *
+ * @return  status code representing success or failure
  */
-void
+tsalloc_err_t
 pagetrie_deinit(
-    pagetrie_t *pagetrie
+    tsalloc_errctx_t   *error_ctx,
+    pagetrie_t         *pagetrie
 );
 
 /*
@@ -66,9 +71,22 @@ tsalloc_err_t
 pagetrie_insert(
     tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
-    void               *key,
-    void               *data,
+    const void         *key,
+    const void         *data,
     size_t              nbytes
+);
+
+/*
+ * @brief   removes the metadata key associated with a virtual page
+ * 
+ * @param   pagetrie    pointer to the pagetrie instance
+ * @param   key         virtual memory address in page associated with key to be removed from trie
+ */
+bool 
+pagetrie_remove(
+    pagetrie_t     *pagetrie,
+    const byte_t   *key,
+    size_t          nbytes                                                
 );
 
 /*
@@ -81,21 +99,8 @@ pagetrie_insert(
  */
 void* 
 pagetrie_lookup(
-    pagetrie_t *pagetrie,
-    byte_t     *key
-);
-
-/*
- * @brief   removes the metadata key associated with a virtual page
- * 
- * @param   pagetrie    pointer to the pagetrie instance
- * @param   key         virtual memory address in page associated with key to be removed from trie
- */
-bool 
-pagetrie_remove(
-    pagetrie_t *pagetrie,
-    byte_t     *key,
-    size_t      nbytes                                                
+    const pagetrie_t   *pagetrie,
+    const byte_t       *key
 );
 
 
