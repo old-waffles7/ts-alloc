@@ -13,6 +13,8 @@
 #include    "common.h"
 #include    "error.h"
 
+#include    "../config/tsalloc_config.h"
+
 #include    "bin.h"
 #include    "span.h"
 #include    "mutex.h"
@@ -27,29 +29,29 @@
  */
 struct span_cache
 {
-    bin_t      *bins;       ///< pointer to the array of bins
-    byte_t     *bitmap;     ///< pointer to the bitmap tracking non-empty bins
-    pagetrie_t  pagetrie;   ///< pagetrie for tracking span descriptors, facillitates coalescion
-    records_t   origins;    ///< linked-list for tracking origin span descriptors, facillitates explicit global destruction
-    objpool_t   spanpool;   ///< object-pool for span descriptors
-    objpool_t   slabpool;   ///< object-pool for slab descriptors
-    mutex_t     lock;       ///< mutex for thread-safe access
-    size_t      nclasses;   ///< number of size classes managed by the cache
-    uint32_t    epoch;      ///< cache-global epoch for initializing ages of newly minteed spans
-    uint16_t    uid;        ///< uid of owning arena
+    bin_t          *bins;       
+    byte_t         *bitmap;     
+    pagetrie_t     *pagetrie;
+    mutex_t         lock;    
+    objpool_t       spanpool; 
+    objpool_t       slabpool;  
+    records_t       origins;    
+    ts_szclass_t    nszclasses;
+    uint32_t        epoch;     
+    uint16_t        arena_uid; 
 };
 typedef struct span_cache   scache_t;
 
 /*
  * @brief   calculates the required auxiliary memory size for the span cache
  *
- * @param   arena_cfg   pointer to the arena configuration
+ * @param   global_config   pointer to the global allocation state
  *
  * @return  size of auxiliary memory in bytes
  */
 static inline size_t
 scache_auxil_mem_size(
-    arena_cfg_t        *arena_cfg
+    const glob_alloc_state_t   *global_config
 ){
     static size_t   nbytes;
     size_t          nszclasses;
@@ -59,29 +61,12 @@ scache_auxil_mem_size(
         return nbytes;
     }
 
-    nszclasses  = (arena_cfg->tsalloc_cfg->nszclasses_span);
+    nszclasses  = (global_config->nszclasses_span);
     nbytes      = sizeof(bin_t) * nszclasses;
     nbytes     += 8 + ((nszclasses + 63) / 64) * 8;
 
     return nbytes;
 }
-
-/*
- * @brief   returns pointer to span descriptor associated with specified memory address
- *
- * @param   cache   pointer to the span cache being searched
- * @param   addr    memory address to be used as a key
- *
- * @return  pointer to the assocated span if it exists, otherwise `nullptr`
- */
-static inline span_t*
-scache_mapto_span(
-    scache_t   *cache,
-    byte_t     *addr
-){
-    return ((span_t*)pagetrie_lookup(&(cache->pagetrie), addr));
-}
-
 
 /*
  * @brief   initializes a new span cache
@@ -95,10 +80,13 @@ scache_mapto_span(
  */
 tsalloc_err_t
 scache_init(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    byte_t             *auxil_mem,
-    scache_t           *cache
+    const glob_alloc_state_t   *global_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    pagetrie_t                 *pagetrie,
+    byte_t                     *auxil_mem,
+    scache_t                   *cache,
+    uint16_t                    arena_uid
 );
 
 /*
@@ -129,8 +117,8 @@ scache_deinit(
  */
 tsalloc_err_t
 scache_destroy(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     scache_t           *cache
 );
 
@@ -146,10 +134,11 @@ scache_destroy(
  */
 tsalloc_err_t
 scache_put_span(
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    scache_t           *cache,
-    span_t             *span
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    scache_t                   *cache,
+    span_t                     *span
 );
 
 /*
@@ -168,17 +157,18 @@ scache_put_span(
 tsalloc_err_t
 scache_get_span(
     const tsalloc_slab_info_t  *slab_init_info,
-    tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
-    scache_t           *cache,
-    span_t            **dest,
-    tsalloc_szclass_t   szclass
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    scache_t                   *cache,
+    span_t                    **dest,
+    ts_szclass_t                szclass
 );
 
 tsalloc_err_t
 scache_decay(
+    const arena_cfg_t  *arena_cfg,
     tsalloc_errctx_t   *error_ctx,
-    arena_cfg_t        *arena_cfg,
     scache_t           *cache
 );
 
