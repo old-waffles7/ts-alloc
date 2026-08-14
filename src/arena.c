@@ -3,8 +3,10 @@
 #include    "internal/error.h"
 #include    "internal/arena.h"
 
+#include    "internal/glob.h"
 #include    "internal/scache.h"
 #include    "internal/bcache.h"
+#include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
 #include    <stdatomic.h>
@@ -16,8 +18,10 @@ arena_init(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
     tsalloc_errctx_t           *error_ctx,
+    pagetrie_t                 *pagetrie,
     byte_t                     *auxil_mem,
-    arena_t                    *arena
+    arena_t                    *arena,
+    uint16_t                    arena_uid
 ){
     if (!auxil_mem)
     {
@@ -29,23 +33,25 @@ arena_init(
         return TSALLOC_INVALID_ARGS;
     }
 
-    byte_t         *bcache_addr;
+    
     tsalloc_err_t   ret;
-
-    bcache_addr = auxil_mem + scache_auxil_mem_size(arena_cfg);
     
     *arena = (arena_t){
         .glob       = glob,
         .glob_state = glob_state,
         .arena_cfg  = arena_cfg,
-        .error_ctx  = error_ctx
+        .error_ctx  = error_ctx,
+        .arena_uid  = arena_uid
     };
 
     ret = scache_init(
-        error_ctx, 
+        glob_state, 
         arena_cfg, 
+        error_ctx, 
+        pagetrie, 
         auxil_mem, 
-        &(arena->scache)
+        &(arena->scache), 
+        arena_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
@@ -53,16 +59,20 @@ arena_init(
         return ret;
     }
 
+    byte_t         *bcache_auxil_mem_addr;
+
+    bcache_auxil_mem_addr   = auxil_mem + scache_auxil_mem_size(glob_state);
     ret = bcache_init(
-        error_ctx, 
+        glob_state, 
         arena_cfg, 
+        error_ctx, 
         &(arena->scache), 
-        bcache_addr, 
+        bcache_auxil_mem_addr, 
         &(arena->bcache)
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)scache_deinit(error_ctx, &(arena->scache));
+        (void)scache_deinit(nullptr, &(arena->scache));
         append_tsalloc_error_trace(error_ctx);
         return ret;
     }
@@ -78,7 +88,7 @@ arena_deinit(
 
     if (arena->arena_cfg->unmap_on_termination)
     {
-        ret = scache_destroy(arena->error_ctx, arena->arena_cfg, &(arena->scache));
+        ret = scache_destroy(arena->arena_cfg, arena->error_ctx, &(arena->scache));
     }
     else
     {
