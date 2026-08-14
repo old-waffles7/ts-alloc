@@ -1,4 +1,10 @@
 
+/**
+ * @file    column.h
+ * @brief   thread-local cache column definitions and interface
+ */
+
+
 #pragma once
 #ifndef COLUMN_H
 #define COLUMN_H
@@ -9,20 +15,69 @@
 
 #include    "../config/tsalloc_config.h"
 
+#include    "slab.h"
+#include    "span.h"
+#include    "glob.h"
 #include    "arena.h"
+#include    "pagetrie.h"
 #include    "arenaconfig.h"
 
 
+/**
+ * @struct  column
+ * @brief   represents a cache for blocks of a single size class
+ */
 struct column
 {
-    byte_t            **blocks;
-    tsalloc_szclass_t   szclass;
-    size_t              nblocks;
-    size_t              capacity;
-    size_t              epoch_min_nblocks;
+    byte_t        **blocks;
+    ts_szclass_t    szclass;
+    size_t          nblocks;
+    size_t          capacity;
+    size_t          epoch_min_nblocks;
 };
 typedef struct column   col_t;
 
+
+/**
+ * @brief   refills a column with blocks from an arena
+ *
+ * @param   glob    pointer to global allocator
+ * @param   col     pointer to column being refilled
+ *
+ * @return  status code representing success or failure
+ */
+static inline tsalloc_err_t
+_col_refill(
+    glob_t *glob,
+    col_t  *col
+){
+    size_t          nblocks;
+    tsalloc_err_t   ret;
+
+    nblocks = MAX(1, (col->capacity >> 1));
+    ret = arena_get_batch(
+        glob_claim_arena(glob), 
+        col->blocks, 
+        col->szclass, 
+        nblocks
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(&(glob->error_ctx));
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
+}
+
+
+/**
+ * @brief   calculates the auxiliary memory size required for a column
+ *
+ * @param   nblocks number of block pointers required
+ *
+ * @return  required auxiliary memory size in bytes
+ */
 static inline size_t
 col_auxil_mem_size(
     size_t  nblocks
@@ -30,13 +85,25 @@ col_auxil_mem_size(
     return nblocks * sizeof(void*);
 }
 
+
+/**
+ * @brief   initializes a column
+ *
+ * @param   glob_state  pointer to global allocation state
+ * @param   error_ctx   pointer to error handling context
+ * @param   auxil_mem   pointer to pre-allocated memory for the column
+ * @param   col         pointer to column being initialized
+ * @param   szclass     size class associated with the column
+ *
+ * @return  status code representing success or failure
+ */
 static inline tsalloc_err_t
 col_init(
-    const tsalloc_cfg_t    *tsalloc_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    byte_t             *auxil_mem,
-    col_t              *col,
-    tsalloc_szclass_t   szclass
+    const glob_alloc_state_t   *glob_state,
+    tsalloc_errctx_t           *error_ctx,
+    byte_t                     *auxil_mem,
+    col_t                      *col,
+    ts_szclass_t                szclass
 ){
     if (!auxil_mem)
     {
@@ -48,7 +115,7 @@ col_init(
         return TSALLOC_INVALID_ARGS;
     }
 
-    if (szclass > tsalloc_cfg->nszclasses_slab)
+    if (szclass > glob_state->nszclasses_slab)
     {
         set_tsalloc_error(
             error_ctx,
@@ -58,9 +125,9 @@ col_init(
         return TSALLOC_INVALID_ARGS;
     }
 
-    uint32_t    capacity;
+    size_t    capacity;
 
-    capacity    = tsalloc_cfg->tcache_info[szclass];
+    capacity    = glob_state->tcache_info[szclass];
     *col        = (col_t){
         .blocks             = (byte_t**)auxil_mem,
         .szclass            = szclass,
@@ -71,113 +138,110 @@ col_init(
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+
+/**
+ * @brief   flushes cached blocks from a column
+ *
+ * @param   glob    pointer to global allocator
+ * @param   col     pointer to column being flushed
+ */
+static inline void
 col_flush(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena,
-    col_t              *col
+    glob_t     *glob,
+    col_t      *col
 ){
-    tsalloc_err_t   ret;
-
-    ret = arena_put_batch(arena, col->blocks, col->nblocks);
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    return TSALLOC_SUCCESS;
+    glob_put_batch(glob, col->blocks, col->nblocks);
 }
 
+
+/**
+ * @brief   retrieves a block from a column
+ *
+ * @param   glob    pointer to global allocator
+ * @param   col     pointer to column supplying the block
+ * @param   dest    pointer to destination of block pointer
+ *
+ * @return  status code representing success or failure
+ */
 static inline tsalloc_err_t
 col_get_block(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena,
+    glob_t             *glob,
     col_t              *col,
     byte_t            **dest
 ){
-    if (col->nblocks ==  0)
+    if (col->nblocks == 0)
     {
         tsalloc_err_t   ret;
-        uint16_t        nblocks_get;
 
-        nblocks_get = MAX(1, col->capacity >> 1);
-        ret = arena_get_batch(
-            arena, 
-            col->blocks, 
-            col->szclass, 
-            nblocks_get
-        );
+        ret = _col_refill(glob, col);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
-        col->nblocks    = nblocks_get;
     }
 
-    *dest   = col->blocks[--col->nblocks];
+    col->nblocks--;
     if (col->nblocks < col->epoch_min_nblocks)
     {
-        col->epoch_min_nblocks = col->nblocks;
+        col->epoch_min_nblocks  = col->nblocks;
     }
+
+    *dest   = col->blocks[col->nblocks - 1];
 
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+
+/**
+ * @brief   returns a block to a column
+ *
+ * @param   glob    pointer to global allocator
+ * @param   col     pointer to column receiving the block
+ * @param   block   pointer to block being returned
+ */
+static inline void
 col_put_block(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena,
-    col_t              *col,
-    byte_t             *block
+    glob_t *glob,
+    col_t  *col,
+    byte_t *block
 ){
     if (col->nblocks == col->capacity)
     {
-        byte_t        **batch;
-        tsalloc_err_t   ret;
-        uint16_t        nblocks_put;
-        uint16_t        nblocks_keep;
+        byte_t    **batch;
+        size_t      nblocks_put;
+        size_t      nblocks_keep;
 
         nblocks_keep    = MAX(1, 3 * (col->capacity >> 2));
         nblocks_put     = col->capacity - nblocks_keep;
         batch           = col->blocks + nblocks_keep;
-        ret = arena_put_batch(arena, batch, nblocks_put);
-        if (ret != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(error_ctx);
-            return ret;
-        }
-
         col->nblocks   -= nblocks_put;
+        glob_put_batch(glob, batch, nblocks_put);
     }
 
     col->blocks[col->nblocks]   = block;
     col->nblocks++;
-
-    return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
-col_decay(
-    tsalloc_errctx_t   *error_ctx,
-    arena_t            *arena,
-    col_t              *col
-){
-    byte_t        **batch;
-    tsalloc_err_t   ret;
 
-    ret = arena_put_batch(arena, batch, col->epoch_min_nblocks);
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
+/**
+ * @brief   decays cached blocks from a column
+ *
+ * @param   glob    pointer to global allocator
+ * @param   col     pointer to column being decayed
+ */
+static inline void
+col_decay(
+    glob_t *glob,
+    col_t  *col
+){
+    byte_t    **batch;
+
+    batch   = col->blocks + (col->nblocks - col->epoch_min_nblocks);
+    glob_put_batch(glob, batch, col->epoch_min_nblocks);
 
     col->nblocks           -= col->epoch_min_nblocks;
     col->epoch_min_nblocks  = col->nblocks;
-
-    return TSALLOC_SUCCESS;
 }
 
 
