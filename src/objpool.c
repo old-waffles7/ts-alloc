@@ -119,6 +119,17 @@ objpool_init(
     chunk_desc_offset   = ALIGN_UP(sizeof(chunk_t), align);
     nbytes_chunk        = chunk_desc_offset + nbytes_slab * nobjs_chunk;
 
+    if (nobjs_chunk > ((SIZE_MAX - chunk_desc_offset) / nbytes_slab))
+    {
+        set_tsalloc_error(
+            error_ctx,
+            "objpool_init::objpool.c chunk size overflow",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS;
+    }
+
+
     if(align <= sys_page_size())
     {
         nbytes_chunk    = ALIGN_UP(nbytes_chunk, sys_page_size());
