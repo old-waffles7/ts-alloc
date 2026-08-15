@@ -6,6 +6,7 @@
 #include    "config/tsalloc_config.h"
 
 #include    "internal/os.h"
+#include    "internal/mutex.h"
 #include    "internal/arena.h"
 #include    "internal/ledger.h"
 #include    "internal/tcache.h"
@@ -252,7 +253,7 @@ glob_create(
     static _Atomic(uint16_t)    glob_epoch;
     uint16_t                    glob_uid;
 
-    glob_uid    = atomic_fetch_add_explicit(&glob_epoch, 1, memory_order_release);
+    glob_uid    = atomic_load_explicit(&glob_epoch, memory_order_acquire);
     if (glob_uid >= TSALLOC_MAXN_GLOBS - 1)
     {
         return TSALLOC_UNTRACKED_FAILURE;
@@ -380,6 +381,7 @@ glob_create(
         auxil_mem  += nbytes_arena_auxil_mem;
     }
 
+    atomic_store_explicit(&glob_epoch, glob_uid + 1, memory_order_release);
     tlocal_bcache_isoff[glob_uid]   = _arena_cfg.default_turnoff_tcaches;
     *dest                           = glob;
 
