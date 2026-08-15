@@ -2,8 +2,6 @@
 #include    "internal/common.h"
 #include    "internal/error.h"
 
-#include    "config/tsalloc_config.h"
-
 #include    "internal/span.h"
 #include    "internal/objpool.h"
 

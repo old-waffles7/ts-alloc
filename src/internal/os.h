@@ -33,7 +33,6 @@ sys_page_size(void)
 {
     static _Atomic uint64_t cached_page_size;
 
-    atomic_init(&cached_page_size, 0);
     if (cached_page_size == 0)
     {
         atomic_store(&cached_page_size, sysconf(_SC_PAGESIZE));
