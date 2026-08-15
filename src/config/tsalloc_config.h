@@ -142,7 +142,7 @@ tsconfig_get_nbytes_szclass(
 ){
     if (isslab)
     {
-        if (szclass < 0 || szclass >= cfg->nszclasses_slab)
+        if (szclass < 0 || (szclass >= cfg->nszclasses_slab))
         {
             return -1;
         }
@@ -150,7 +150,7 @@ tsconfig_get_nbytes_szclass(
         return cfg->szclass_max_nbytes_slab[szclass];
     }
 
-    if (szclass > cfg->nszclasses_span)
+    if (szclass >= cfg->nszclasses_span)
     {
         return (-1);
     }
@@ -166,7 +166,7 @@ tsconfig_get_nbytes_span_szclass(
 ){
     if (isslab)
     {
-        if (szclass > cfg->nszclasses_slab)
+        if (szclass >= cfg->nszclasses_slab)
         {
             return (-1);
         }
@@ -174,8 +174,7 @@ tsconfig_get_nbytes_span_szclass(
         return cfg->slab_infos[szclass].slab_size;
     }
 
-    if (szclass < 0 || szclass >= cfg->nszclasses_slab)
-    {
+    if (szclass < 0 || (szclass >= cfg->nszclasses_span)) {
         return -1;
     }
 
