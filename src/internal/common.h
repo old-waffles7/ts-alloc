@@ -30,9 +30,6 @@
 
 #include    <assert.h>
 
-//  remove
-#include    "opt.h"
-
 
 #define     ALIGN_UP(x, align)      ((((uintptr_t)(x)) + ((uintptr_t)(align) - 1)) & ~((uintptr_t)(align) - 1))
 #define     ALIGN_DOWN(x, align)    (((uintptr_t)(x)) & ~((uintptr_t)(align) - 1))     

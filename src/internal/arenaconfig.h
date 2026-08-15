@@ -22,107 +22,113 @@
 #include    <errno.h>
 
 
-//  expose this later (to both arena header malloc header)
-/*
- * @enum    TSALLOC_ADVISE_FLAG
- * @brief   status codes representing the outcome of allocator operations
- * 
- * @warning implementation of all flags in `auxil_madvise` is NOT required, the function can even
- *          be `NULL`
- */
-enum TSALLOC_ADVISE_FLAG    : uint8_t
-{
-    /* todo
-        TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
-        TSALLOC_DO_FORK,    ///< flags that memory must be duplicated on `fork` invocations
+#ifndef     TSALLOC_ARENACONFIG_DEFINED
+#define     TSALLOC_ARENACONFIG_DEFINED
+
+    /*
+    * @enum    TSALLOC_ADVISE_FLAG
+    * @brief   status codes representing the outcome of allocator operations
+    * 
+    * @warning implementation of all flags in `auxil_madvise` is NOT required, the function can even
+    *          be `NULL`
     */
-    
-    TSALLOC_ADVISE_RETAIN   ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
-};
-typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
-
-
-typedef void* (*auxil_map_fn)(
-    void   *extra,
-    size_t  align,
-    size_t  nbytes
-);
-
-typedef int (*auxil_unmap_fn)(
-    void   *extra,
-    void   *addr,
-    size_t  nbytes
-);
-
-typedef int (*auxil_madvise_fn)(
-    void               *extra,
-    void               *addr,
-    size_t              nbytes,
-    tsalloc_advice_t    flag
-);
-
-
-/**
- * @brief   defines the hardware backend interface and configuration for an arena
- * 
- * holds function pointers for custom allocation and deallocation routines, allowing 
- * the arena to interact with arbitrary memory sources. includes an opaque pointer 
- * for backend-specific state
- */
-struct arena_config
-{
-    /**
-     * @brief   core allocation function pointer
-     * 
-     * @param   extra   opaque pointer to backend-specific state
-     * @param   align   minimum alignment required for the allocation
-     * @param   nbytes  exact nbytes of memory to allocate
-     * 
-     * @return  pointer to the allocated memory region
-     * 
-     * @warning must be thread-safe (e.g., `mmap`, 'cudaMalloc` are thread-safe)
-     */
-    auxil_map_fn        auxil_map;
-
-    /**
-     * @brief   core deallocation function pointer
-     * 
-     * @param   extra   opaque pointer to backend-specific state
-     * @param   addr    pointer to the start of the mapped memory region
-     * @param   nbytes  exact nbytes originally requested
-     * 
-     * @return  exactly 0 on success, otherwise failure
-     * 
-     * @warning must be thread-safe (e.g., 'munmap`, `cudaFree` are thread-safe )
-     */
-    auxil_unmap_fn      auxil_unmap;
-
-    /**
-     * @brief   pointer to core mutator of memory-state
-     * 
-     * @param   extra   opaque pointer to backend-specific state
-     * @param   addr    pointer to the start of the mapped memory region
-     * @param   nbytes  exact nbytes originally requested
-     * @param   flag    dictates how memory-state will be mutated
-     * 
-     * @return  exactly 0 on success, otherwise failure
-     * 
-     * @warning implementation of this function is optional, can be `NULL`
-     * @warning must be thread-safe (e.g., `mmap`, `posix_madvise` are thread-safe)
-     */
-    auxil_madvise_fn    auxil_madvise;
-
-    void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
+    enum TSALLOC_ADVISE_FLAG    : uint8_t
+    {
+        /* todo
+            TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
+            TSALLOC_DO_FORK,    ///< flags that memory must be duplicated on `fork` invocations
+        */
         
-    size_t          pagesize;                   ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-    size_t          def_alloc_align;
-    ts_szclass_t    default_new_span_szclass;
-    uint16_t        lcpu_arena_count;
+        TSALLOC_ADVISE_RETAIN   ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
+    };
+    typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
 
-    bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
-    bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
-};
-typedef struct arena_config arena_cfg_t;
+
+    typedef void* (*auxil_map_fn)(
+        void   *extra,
+        size_t  align,
+        size_t  nbytes
+    );
+
+    typedef int (*auxil_unmap_fn)(
+        void   *extra,
+        void   *addr,
+        size_t  nbytes
+    );
+
+    typedef int (*auxil_madvise_fn)(
+        void               *extra,
+        void               *addr,
+        size_t              nbytes,
+        tsalloc_advice_t    flag
+    );
+
+
+    /**
+    * @brief   defines the hardware backend interface and configuration for an arena
+    * 
+    * holds function pointers for custom allocation and deallocation routines, allowing 
+    * the arena to interact with arbitrary memory sources. includes an opaque pointer 
+    * for backend-specific state
+    */
+    struct tsalloc_arena_config
+    {
+        /**
+        * @brief   core allocation function pointer
+        * 
+        * @param   extra   opaque pointer to backend-specific state
+        * @param   align   minimum alignment required for the allocation
+        * @param   nbytes  exact nbytes of memory to allocate
+        * 
+        * @return  pointer to the allocated memory region
+        * 
+        * @warning must be thread-safe (e.g., `mmap`, 'cudaMalloc` are thread-safe)
+        */
+        auxil_map_fn        auxil_map;
+
+        /**
+        * @brief   core deallocation function pointer
+        * 
+        * @param   extra   opaque pointer to backend-specific state
+        * @param   addr    pointer to the start of the mapped memory region
+        * @param   nbytes  exact nbytes originally requested
+        * 
+        * @return  exactly 0 on success, otherwise failure
+        * 
+        * @warning must be thread-safe (e.g., 'munmap`, `cudaFree` are thread-safe )
+        */
+        auxil_unmap_fn      auxil_unmap;
+
+        /**
+        * @brief   pointer to core mutator of memory-state
+        * 
+        * @param   extra   opaque pointer to backend-specific state
+        * @param   addr    pointer to the start of the mapped memory region
+        * @param   nbytes  exact nbytes originally requested
+        * @param   flag    dictates how memory-state will be mutated
+        * 
+        * @return  exactly 0 on success, otherwise failure
+        * 
+        * @warning implementation of this function is optional, can be `NULL`
+        * @warning must be thread-safe (e.g., `mmap`, `posix_madvise` are thread-safe)
+        */
+        auxil_madvise_fn    auxil_madvise;
+
+        void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
+            
+        size_t          pagesize;                   ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
+        size_t          def_alloc_align;
+        ts_szclass_t    default_new_span_szclass;
+        uint16_t        lcpu_arena_count;
+
+        bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
+        bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
+    };
+
+#endif      //TSALLOC_ARENACONFIG_DEFINED
+
+typedef struct tsalloc_arena_config tsarena_cfg_t;
+typedef struct tsalloc_arena_config arena_cfg_t;
 
 
 /**

@@ -29,10 +29,12 @@
         TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
         TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
     }; 
-    typedef enum TSALLOC_ERROR  tsalloc_err_t;
-    typedef enum TSALLOC_ERROR  ts_err_t;
 
 #endif      //TSALLOC_ERROR_DEFINED
+
+typedef enum TSALLOC_ERROR  tsalloc_err_t;
+typedef enum TSALLOC_ERROR  ts_err_t;
+
 
 struct tsalloc_error_state
 {

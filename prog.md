@@ -3,6 +3,7 @@ todo:
     -   add -fno-strict-aliasing to cmake bc of the casting
     -   what happens if adjacent spans are freed at same time? span A is coalescing and span B
         is still looking up pagetrie for adjacent spans or vice versa?
+    -   should i lock arena, tcaches during decay
     -   fix tcache_info in the config script.... rename to tcache_capacity or something
 
 would add later:

@@ -14,26 +14,32 @@
 #include    "os.h"
 
 
-#define SIZE_TRACE_BUFFER   512
+#define     SIZE_TRACE_BUFFER   512
 
 
-//  expose this later (to arena header instead of malloc header)
-/*
- * @enum    TSALLOC_ERROR
- * @brief   status codes representing the outcome of allocator operations
- */
-enum TSALLOC_ERROR    : uint8_t
-{
-    TSALLOC_SUCCESS = 0,        ///< operation completed successfully
-    TSALLOC_UNTRACKED_FAILURE,  ///< arena failed to initialize/deinitialize
-    TSALLOC_OS_ERR,             ///< os error, sets `os_error_code`
-    TSALLOC_AUXIL_MAP_ERR,      ///< auxilliary allocator could not allocate memory
-    TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
-    TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
-    TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
-};
+#ifndef     TSALLOC_ERROR_DEFINED
+#define     TSALLOC_ERROR_DEFINED
+
+    //  expose this later (to arena header instead of malloc header)
+    /*
+    * @enum    TSALLOC_ERROR
+    * @brief   status codes representing the outcome of allocator operations
+    */
+    enum TSALLOC_ERROR    : uint8_t
+    {
+        TSALLOC_SUCCESS = 0,        ///< operation completed successfully
+        TSALLOC_UNTRACKED_FAILURE,  ///< arena failed to initialize/deinitialize
+        TSALLOC_OS_ERR,             ///< os error, sets `os_error_code`
+        TSALLOC_AUXIL_MAP_ERR,      ///< auxilliary allocator could not allocate memory
+        TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
+        TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
+        TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
+    };
+
+#endif      //TSALLOC_ERROR_DEFINED
 
 typedef enum TSALLOC_ERROR  tsalloc_err_t;
+typedef enum TSALLOC_ERROR  ts_err_t;
 
 
 struct tsalloc_err_ctx
