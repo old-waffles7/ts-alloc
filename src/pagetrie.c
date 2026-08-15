@@ -47,21 +47,19 @@ pagetrie_rollback(
         idx2    = (page_addr >> LEVEL_SHIFT) & LEVEL_MASK;
         idx3    = page_addr & LEVEL_MASK;
 
-        node1   = atomic_load_explicit(
-            &root->child[idx1],
-            memory_order_relaxed
-        );
+        node1 = atomic_load_explicit(&root->child[idx1], memory_order_relaxed);
+        if (!node1)
+        {
+            continue; 
+        }
 
-        node2   = atomic_load_explicit(
-            &node1->child[idx2],
-            memory_order_relaxed
-        );
+        node2 = atomic_load_explicit(&node1->child[idx2], memory_order_relaxed);
+        if (!node2)
+        {
+            continue; 
+        }
 
-        atomic_store_explicit(
-            &node2->data[idx3],
-            nullptr,
-            memory_order_release
-        );
+        atomic_store_explicit(&node2->data[idx3], nullptr, memory_order_release);
     }
 }
 
