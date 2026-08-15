@@ -181,13 +181,12 @@ col_get_block(
         }
     }
 
+    *dest   = col->blocks[col->nblocks - 1];
     col->nblocks--;
     if (col->nblocks < col->epoch_min_nblocks)
     {
         col->epoch_min_nblocks  = col->nblocks;
     }
-
-    *dest   = col->blocks[col->nblocks - 1];
 
     return TSALLOC_SUCCESS;
 }
