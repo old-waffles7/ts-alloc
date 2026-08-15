@@ -15,6 +15,7 @@
 
 #include    "../config/tsalloc_config.h"
 
+#include    "slab.h"
 #include    "span.h"
 #include    "mutex.h"
 #include    "scache.h"
@@ -75,6 +76,7 @@ _pail_mint_slab(
     }
 
     registry_push(&(pail->slabs), slab);
+    pail->nslabs++;
 
     return TSALLOC_SUCCESS;
 }
@@ -165,6 +167,7 @@ _pail_put_block(
             pail->macro, 
             slab
         );
+        pail->nslabs--;
     }
     else if (slab->slabmeta->nblocks_free == 1)
     {
