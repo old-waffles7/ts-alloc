@@ -35,6 +35,7 @@ struct tsalloc_global_arena
     tsalloc_errctx_t    error_ctx;
     pagetrie_t          pagetrie;
     ledger_t            ledger;
+    mutex_t             ledger_lock;
     _Atomic(uint32_t)   arena_idx;  //  uint16_t upsized to 32 bit-width for costless casting
     uint32_t            narenas;    //  uint16_t upsized to 32 bit-width for costless casting
     uint16_t            glob_uid;
@@ -79,6 +80,28 @@ glob_put_batch_inarena(
         arena   = glob->arenas + ((uint16_t)slab->flags.arena_uid);
         arena_put_block(arena, slab, batch[i]);
     }
+}
+
+static inline void
+glob_register_tcache
+(
+    glob_t     *glob,
+    tcache_t   *cache
+){
+    mutex_lock(&(glob->ledger_lock));
+        ledger_push(&(glob->ledger), cache);
+    mutex_unlock(&(glob->ledger_lock));
+}
+
+static inline void
+glob_deregister_tcache
+(
+    glob_t     *glob,
+    tcache_t   *cache
+){
+    mutex_lock(&(glob->ledger_lock));
+        ledger_remove(&(glob->ledger), cache);
+    mutex_unlock(&(glob->ledger_lock));
 }
 
 

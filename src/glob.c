@@ -41,7 +41,7 @@ tsalloc_tcleanup(
         }
 
         cache   = tlocal_bcache[i];
-        ledger_remove(&(cache->macro->ledger), cache);
+        glob_deregister_tcache(cache->macro, cache);
         ret = tcache_destroy(cache);
         if (ret != TSALLOC_SUCCESS)
         {
@@ -327,8 +327,15 @@ glob_create(
     {
         return TSALLOC_UNTRACKED_FAILURE;
     }
-    glob        = (glob_t*)raw;
     arena_addr  = (arena_t*)(raw + sizeof(glob_t));
+    glob        = (glob_t*)raw;
+    *glob       = (glob_t){
+        .arenas         = arena_addr,
+        .glob_state     = glob_state,
+        .arena_cfg      = _arena_cfg,
+        .glob_uid       = glob_uid,
+        .narenas        = narenas
+    };
     
     tsalloc_err_t   ret;
 
@@ -339,13 +346,13 @@ glob_create(
         return TSALLOC_UNTRACKED_FAILURE;
     }
 
-    *glob   = (glob_t){
-        .arenas         = arena_addr,
-        .glob_state     = glob_state,
-        .arena_cfg      = _arena_cfg,
-        .glob_uid       = glob_uid,
-        .narenas        = narenas
-    };
+    ret = mutex_init(nullptr, &(glob->ledger_lock));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        (void)pagetrie_deinit(nullptr, &(glob->pagetrie));
+        (void)sys_unmap(((void*)raw), nbytes_req);
+        return TSALLOC_UNTRACKED_FAILURE;
+    }
 
     byte_t     *auxil_mem;
     
@@ -364,6 +371,7 @@ glob_create(
         );
         if (ret != TSALLOC_SUCCESS)
         {
+            (void)mutex_deinit(nullptr, &(glob->ledger_lock));
             (void)pagetrie_deinit(nullptr, &(glob->pagetrie));
             (void)sys_unmap(((void*)raw), nbytes_req);
             return TSALLOC_UNTRACKED_FAILURE;
@@ -570,11 +578,10 @@ glob_turnoff_tcache(
 
     if (tlocal_bcache[glob_uid])
     {
-        ledger_remove(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
+        glob_deregister_tcache(tlocal_bcache[glob_uid]->macro, tlocal_bcache[glob_uid]);
         ret = tcache_destroy(tlocal_bcache[glob->glob_uid]);
         if (ret != TSALLOC_SUCCESS)
         {
-            ledger_push(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
             append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
@@ -584,6 +591,3 @@ glob_turnoff_tcache(
 
     return TSALLOC_SUCCESS;
 }
-
-make a fucntion that check whether block/span already in slab/span.isalloc to prevent
-double frees. slab.is_unalloc
