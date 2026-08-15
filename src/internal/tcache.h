@@ -137,7 +137,7 @@ tcache_create(
         ret = col_init(
             glob->glob_state, 
             &(glob->error_ctx), 
-            auxil_mems_addr + col_auxil_mem_size(glob->glob_state->tcache_info[i]), 
+            auxil_mems_addr, 
             columns_addr + i, 
             i
         );
@@ -146,6 +146,9 @@ tcache_create(
             append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
+
+
+        auxil_mems_addr    += col_auxil_mem_size(glob->glob_state->tcache_info[i]);
     }
 
     *dest   = cache;
