@@ -208,6 +208,7 @@ glob_decay(
 ){
     tsalloc_err_t   ret1, ret2;
 
+    ret2    = TSALLOC_SUCCESS;
     for (uint16_t i = 0; i < glob->narenas; i++)
     {
         ret1    = arena_decay(glob->arenas + i);
@@ -228,7 +229,7 @@ glob_decay(
         cache   = cache->coord.next;
     }
 
-    return TSALLOC_SUCCESS;
+    return ret2;
 }
 
 
@@ -351,8 +352,6 @@ glob_create(
     auxil_mem   = (raw + sizeof(glob_t) + narenas * sizeof(arena_t));
     for (uint16_t i = 0; i < narenas; i++)
     {
-        auxil_mem  += nbytes_arena_auxil_mem;
-
         ret = arena_init(
             glob,
             glob_state,
@@ -369,6 +368,8 @@ glob_create(
             (void)sys_unmap(((void*)raw), nbytes_req);
             return TSALLOC_UNTRACKED_FAILURE;
         }
+
+        auxil_mem  += nbytes_arena_auxil_mem;
     }
 
     tlocal_bcache_isoff[glob_uid]   = _arena_cfg.default_turnoff_tcaches;
@@ -537,7 +538,7 @@ void
 glob_turnon_tcache(
     glob_t *glob
 ){
-    tlocal_bcache_isoff[glob->glob_uid] = true;
+    tlocal_bcache_isoff[glob->glob_uid] = false;
 }
 
 tsalloc_err_t 
@@ -548,15 +549,20 @@ glob_turnoff_tcache(
     uint16_t        glob_uid;
 
     glob_uid    = glob->glob_uid;
-    ledger_remove(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
-    ret = tcache_destroy(tlocal_bcache[glob->glob_uid]);
-    if (ret != TSALLOC_SUCCESS)
+
+    if (tlocal_bcache[glob_uid])
     {
-        ledger_push(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
-        append_tsalloc_error_trace(&(glob->error_ctx));
-        return ret;
+        ledger_remove(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
+        ret = tcache_destroy(tlocal_bcache[glob->glob_uid]);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            ledger_push(&(tlocal_bcache[glob_uid]->macro->ledger), tlocal_bcache[glob_uid]);
+            append_tsalloc_error_trace(&(glob->error_ctx));
+            return ret;
+        }
     }
-    tlocal_bcache_isoff[glob->glob_uid] = false;
+
+    tlocal_bcache_isoff[glob->glob_uid] = true;
 
     return TSALLOC_SUCCESS;
 }
