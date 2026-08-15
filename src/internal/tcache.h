@@ -1,4 +1,10 @@
 
+/**
+ * @file    tcache.h
+ * @brief   thread-local cache definitions and interface
+ */
+
+
 #pragma once
 #ifndef TCACHE_H
 #define TCACHE_H
@@ -9,6 +15,7 @@
 
 #include    "../config/tsalloc_config.h"
 
+#include    "os.h"
 #include    "glob.h"
 #include    "arena.h"
 #include    "column.h"
@@ -16,18 +23,30 @@
 #include    "arenaconfig.h"
 
 
+/**
+ * @struct  thread_loc_cache
+ * @brief   represents a thread-local cache of memory blocks
+ */
 struct thread_loc_cache
 {
     col_t          *columns;
-    arena_t        *loc_arena;
+    glob_t         *macro;
     ledger_coord_t  coord;
-    size_t          nszclasses; 
+    ts_szclass_t    nszclasses; 
 };
 typedef struct thread_loc_cache tcache_t;
 
+
+/**
+ * @brief   calculates the memory required for a thread-local cache
+ *
+ * @param   glob_state  pointer to global allocation state
+ *
+ * @return  required memory size in bytes
+ */
 static inline size_t
-tcache_auxil_mem_size(
-    const tsalloc_cfg_t    *tsalloc_cfg
+_tcache_mem_size(
+    const glob_alloc_state_t   *glob_state
 ){
     static size_t   nbytes;
 
@@ -36,177 +55,206 @@ tcache_auxil_mem_size(
         return nbytes;
     }
 
-    uint16_t    nszclasses;
+    ts_szclass_t    nszclasses;
 
-    nszclasses  = tsalloc_cfg->nszclasses_span;
-    for (uint16_t i = 0; i < nszclasses; i++)
+    nbytes     += sizeof(tcache_t);
+    nszclasses  = glob_state->nszclasses_span;
+    for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
-        nbytes += col_auxil_mem_size(tsalloc_cfg->tcache_info[i]) + sizeof(col_t);
+        nbytes += col_auxil_mem_size(glob_state->tcache_info[i]) + sizeof(col_t);
     }
 
     return nbytes;
 }
 
-static inline tsalloc_err_t
-tcache_init(
-    const tsalloc_cfg_t    *tsalloc_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    byte_t             *auxil_mem,
-    glob_arena_t       *global,
-    tcache_t           *cache
+
+/**
+ * @brief   flushes all columns in a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache being flushed
+ */
+static inline void
+_tcache_flush(
+    tcache_t   *cache
 ){
-    if (!auxil_mem)
+    ts_szclass_t    nszclasses;
+    
+    nszclasses  = cache->nszclasses;
+    for (ts_szclass_t i = 0; i < nszclasses; i++)
+    {
+        col_flush(cache->macro, cache->columns + i);
+    }
+}
+
+
+/**
+ * @brief   creates a thread-local cache
+ *
+ * @param   glob    pointer to global allocator
+ * @param   dest    pointer destination of pointer to created thread-local cache
+ *
+ * @return  status code representing success or failure
+ */
+static tsalloc_err_t
+tcache_create(
+    glob_t     *glob,
+    tcache_t  **dest
+){
+    byte_t *raw;
+    size_t  nbytes_req;
+
+    nbytes_req  =_tcache_mem_size(glob->glob_state);
+    raw         = (byte_t*)sys_map(nbytes_req);
+    if (raw == nullptr)
     {
         set_tsalloc_error(
-            error_ctx,
-            "tcache_init::tcache.h nullptr axuil_mem argument",
-            TSALLOC_INVALID_ARGS
+            &(glob->error_ctx),
+            "tcache_create::tcache.h os failure to map memory for tcache",
+            TSALLOC_OS_ERR
         );
-        return TSALLOC_INVALID_ARGS;
+        return TSALLOC_OS_ERR;
     }
 
-    col_t          *column;
-    col_t          *columns;
-    byte_t         *col_auxil_mem;
-    byte_t         *auxil_mem_addr;
-    size_t          nszclasses;
+    col_t          *columns_addr;
+    byte_t         *auxil_mems_addr;
+    tcache_t       *cache;
+    ts_szclass_t    nszclasses;
+
+    nszclasses      = glob->glob_state->nszclasses_span;
+    columns_addr    = (col_t*)(raw + sizeof(tcache_t));
+    auxil_mems_addr = ((byte_t*)columns_addr) + nszclasses * sizeof(col_t);
+    cache           = (tcache_t*)raw;
+    *cache          = (tcache_t){
+        .columns    = columns_addr,
+        .macro      = glob,
+        .nszclasses = nszclasses
+    };
+
     tsalloc_err_t   ret;
 
-    nszclasses      = tsalloc_cfg->nszclasses_span;
-    columns         = (col_t*)auxil_mem;
-    auxil_mem_addr  = auxil_mem + nszclasses * sizeof(col_t);
-    for (int i = 0; i < nszclasses; i++)
+    for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
-        column          = columns + i;
-        auxil_mem_addr += col_auxil_mem_size(tsalloc_cfg->tcache_info[i]);
-        col_auxil_mem   = auxil_mem_addr;
-
         ret = col_init(
-            tsalloc_cfg,
-            error_ctx, 
-            col_auxil_mem, 
-            column, 
+            glob->glob_state, 
+            &(glob->error_ctx), 
+            auxil_mems_addr + col_auxil_mem_size(glob->glob_state->tcache_info[i]), 
+            columns_addr + i, 
             i
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
     }
 
-    *cache  = (tcache_t){
-        .columns    = columns,
-        .loc_arena  = glob_claim(global),
-        .nszclasses = nszclasses
-    };
+    *dest   = cache;
 
     return TSALLOC_SUCCESS;
 }
 
-static inline void
-tcache_flush(
+
+/**
+ * @brief   destroys a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache being destroyed
+ *
+ * @return  status code representing success or failure
+ */
+static inline tsalloc_err_t
+tcache_destroy(
     tcache_t   *cache
 ){
-    col_t              *column;
-    tsalloc_szclass_t   nszclasses;
-    
-    nszclasses  = cache->nszclasses;
-    for (tsalloc_szclass_t i = 0; i < nszclasses; i++)
-    {
-        column  = cache->columns + i;
-        (void)col_flush(nullptr, cache->loc_arena, column);
-    }
-}
+    int ret;
 
-static inline tsalloc_err_t
-tcache_get_block(
-    tsalloc_errctx_t   *error_ctx,
-    tcache_t           *cache,
-    byte_t            **dest,
-    tsalloc_szclass_t   szclass
-){
-    if (szclass > cache->nszclasses)
+    _tcache_flush(cache);
+    ret = sys_unmap(((void*)cache), _tcache_mem_size(cache->macro->glob_state));
+
+    if (ret != 0)
     {
         set_tsalloc_error(
-            error_ctx,
-            "tcache_get_block::tcache.h invalide szclass arguemnt",
-            TSALLOC_INVALID_ARGS
+            &(cache->macro->error_ctx),
+            "tcache_destroy::tcache.h os failure to unmap memory for tcache",
+            TSALLOC_OS_ERR
         );
-        return TSALLOC_INVALID_ARGS;
+        return TSALLOC_OS_ERR;
     }
 
+    return TSALLOC_SUCCESS;
+}
+
+
+/**
+ * @brief   retrieves a block from a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache supplying the block
+ * @param   dest    pointer to destination of pointer to block 
+ * @param   szclass size class of the requested block
+ *
+ * @return  status code representing success or failure
+ *
+ * @warning caller must check @p szclass is valid
+ */
+static inline tsalloc_err_t
+tcache_get_block(
+    tcache_t       *cache,
+    byte_t        **dest,
+    ts_szclass_t    szclass
+){
     tsalloc_err_t   ret;
 
     ret = col_get_block(
-        error_ctx, 
-        cache->loc_arena, 
+        cache->macro, 
         cache->columns + szclass, 
         dest
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(&(cache->macro->error_ctx));
         return ret;
     }
 
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+
+/**
+ * @brief   returns a block to a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache receiving the block
+ * @param   block   pointer to block being returned
+ * @param   szclass size class of the block
+ */
+static inline void
 tcache_put_block(
-    tsalloc_errctx_t   *error_ctx,
-    tcache_t           *cache,
-    byte_t             *block,
-    tsalloc_szclass_t   szclass
+    tcache_t       *cache,
+    byte_t         *block,
+    ts_szclass_t    szclass
 ){
-    if (szclass > cache->nszclasses)
-    {
-        set_tsalloc_error(
-            error_ctx,
-            "tcache_put_block::tcache.h invalide szclass arguemnt",
-            TSALLOC_INVALID_ARGS
-        );
-        return TSALLOC_INVALID_ARGS;
-    }
-
-    tsalloc_err_t   ret;
-
-    ret = col_put_block(
-        error_ctx, 
-        cache->loc_arena, 
+    col_put_block(
+        cache->macro, 
         cache->columns + szclass, 
         block
     );
-    if (ret != TSALLOC_SUCCESS)
-    {
-        append_tsalloc_error_trace(error_ctx);
-        return ret;
-    }
-
-    return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+
+/**
+ * @brief   decays all columns in a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache being decayed
+ */
+static inline void
 tcache_decay(
-    tsalloc_errctx_t   *error_ctx,
-    tcache_t           *cache
+    tcache_t   *cache
 ){
-    tsalloc_err_t   ret1, ret2;
-    size_t          nszclasses;
+    ts_szclass_t    nszclasses;
 
-    ret2    = TSALLOC_SUCCESS;
     nszclasses  = cache->nszclasses;
-    for (int i = 0; i < nszclasses; i++)
+    for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
-        ret1    = col_decay(error_ctx, cache->loc_arena, cache->columns + i);
-        if (ret1 != TSALLOC_SUCCESS)
-        {
-            ret2    = ret1;
-        }
+        col_decay(cache->macro, cache->columns + i);
     }
-
-    return ret2;
 }
 
 
