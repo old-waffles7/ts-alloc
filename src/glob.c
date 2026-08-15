@@ -287,7 +287,6 @@ glob_create(
             .default_new_span_szclass   = req.szclass,
             .lcpu_arena_count           = 4,
             .unmap_on_termination       = false,
-            .default_turnoff_tcaches    = false,
             .allow_cross_origin_merge   = true
         };
     }
@@ -382,7 +381,6 @@ glob_create(
     }
 
     atomic_store_explicit(&glob_epoch, glob_uid + 1, memory_order_release);
-    tlocal_bcache_isoff[glob_uid]   = _arena_cfg.default_turnoff_tcaches;
     *dest                           = glob;
 
     return TSALLOC_SUCCESS;

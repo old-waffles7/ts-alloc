@@ -7,6 +7,11 @@
 #include    "../src/internal/common.h"
 
 
+#ifndef     TSALLOC_DEFAULT_ARG
+    #define     TSALLOC_DEFAULT_ARG     0
+#endif      //TSALLOC_DEFAULT_ARG
+
+
 #ifndef     TSALLOC_ERROR_DEFINED
 #define     TSALLOC_ERROR_DEFINED
 
@@ -129,7 +134,6 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
         uint16_t        lcpu_arena_count;
 
         bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
-        bool    default_turnoff_tcaches;
         bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
     };
     typedef struct tsalloc_arena_config tsarena_cfg_t;
@@ -144,6 +148,7 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
  */
 typedef struct tsalloc_global_arena tsalloctr_t;
 
+//  passing TSALLOC_DEFAULT_ARG as parameter for @p arena_cfg configures conventional memory allocator ram.
 ts_err_t
 tsalloc_create(
     const tsarena_cfg_t    *arena_cfg,

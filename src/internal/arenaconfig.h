@@ -120,7 +120,6 @@ struct arena_config
     uint16_t        lcpu_arena_count;
 
     bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
-    bool    default_turnoff_tcaches;
     bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
 };
 typedef struct arena_config arena_cfg_t;
