@@ -73,7 +73,7 @@ glob_put_batch_inarena(
     arena_t    *arena;
     span_t     *slab;
 
-    for (size_t i = 0; i < 0; i++)
+    for (size_t i = 0; i < nblocks; i++)
     {
         slab    = (span_t*)pagetrie_lookup(&(glob->pagetrie), batch[i]);
         arena   = glob->arenas + ((uint16_t)slab->flags.arena_uid);
