@@ -20,7 +20,7 @@
 #include    "arenaconfig.h"
 
 
-typedef struct global_arena glob_arena_t;
+typedef struct tsalloc_global_arena glob_t;
 
 
 /**
@@ -29,7 +29,7 @@ typedef struct global_arena glob_arena_t;
  */
 struct arena
 {
-    const glob_arena_t         *glob;
+    const glob_t               *glob;
     const glob_alloc_state_t   *glob_state;
     const arena_cfg_t          *arena_cfg;
 
@@ -222,7 +222,7 @@ arena_decay(
  */
 tsalloc_err_t
 arena_init(
-    const glob_arena_t         *glob,
+    const glob_t               *glob,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
     tsalloc_errctx_t           *error_ctx,

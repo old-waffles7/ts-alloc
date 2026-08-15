@@ -151,7 +151,6 @@ void
 span_coalesce(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     records_t                  *records,
     span_t                     *lspan,
@@ -205,8 +204,8 @@ span_get_adj(
 static inline bool
 span_can_merge(
     const arena_cfg_t  *arena_cfg,
-    span_t             *lspan,
-    span_t             *rspan
+    const span_t       *lspan,
+    const span_t       *rspan
 ){
     if ((!lspan) || (!rspan))
     {
@@ -224,6 +223,11 @@ span_can_merge(
     {
         return false;
     }
+    if (TSALLOC_ALLOC_MAX - lspan->nbytes < rspan->nbytes)
+    {
+        return false;
+    }
+
     return arena_cfg->allow_cross_origin_merge || (lspan->flags.age == rspan->flags.age);
 }
 

@@ -88,6 +88,11 @@ span_destroy(
     objpool_t          *spanpool,
     span_t             *span
 ){
+    if (span == nullptr)
+    {
+        return TSALLOC_SUCCESS;
+    }
+
     int ret;
 
     ret = arena_cfg->auxil_unmap(
@@ -176,24 +181,12 @@ void
 span_coalesce(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     records_t                  *records,
     span_t                     *lspan,
     span_t                     *rspan,
     span_t                    **dest
 ){
-    if (!lspan)
-    {
-        *dest   = rspan;
-        return;
-    }
-    if (!rspan)
-    {
-        *dest   = lspan;
-        return;
-    }
-
     if (arena_cfg->unmap_on_termination) 
     {
         if (rspan->record)

@@ -15,7 +15,9 @@
 #define     TSALLOC_ALLOC_MAX   ((1ULL << 62))  // 4.6 ExiB
 
 
-typedef int32_t tsalloc_szclass_t;
+typedef int32_t         ts_szclass_t;
+typedef tsalloc_cfg_t   glob_alloc_state_t;
+
 
 /*
  * @struct  tsalloc_szclass_request
@@ -23,8 +25,8 @@ typedef int32_t tsalloc_szclass_t;
  */
 struct tsalloc_szclass_request
 {
-    tsalloc_szclass_t   szclass;    ///< the computed size class index
-    int8_t              isslab;     ///< flag indicating if the size class belongs to a slab (1), span (0), or error (-1)
+    ts_szclass_t    szclass;    ///< the computed size class index
+    int8_t          isslab;     ///< flag indicating if the size class belongs to a slab (1), span (0), or error (-1)
 };
 typedef struct tsalloc_szclass_request  tsalloc_szreq_t;
 
@@ -113,7 +115,7 @@ tsconfig_get_szclass(
 static inline const tsalloc_slab_info_t*
 tsconfig_get_slabinfo(
     const tsalloc_cfg_t    *cfg,
-    tsalloc_szclass_t   szclass
+    ts_szclass_t            szclass
 ){
     if (szclass >= (cfg->nszclasses_slab))
     {
@@ -135,8 +137,8 @@ tsconfig_get_slabinfo(
 static inline ssize_t
 tsconfig_get_nbytes_szclass(
     const tsalloc_cfg_t    *cfg,
-    tsalloc_szclass_t   szclass,
-    bool                isslab
+    ts_szclass_t            szclass,
+    bool                    isslab
 ){
     if (isslab)
     {
@@ -159,8 +161,8 @@ tsconfig_get_nbytes_szclass(
 static inline ssize_t
 tsconfig_get_nbytes_span_szclass(
     const tsalloc_cfg_t    *cfg,
-    tsalloc_szclass_t   szclass,
-    bool                isslab
+    ts_szclass_t            szclass,
+    bool                    isslab
 ){
     if (isslab)
     {

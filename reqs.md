@@ -1,2 +1,2 @@
-- page size: 4096 - 65546 bytes (4-64 kb)
+- page size: 4096 - 65536 bytes (4-64 kb)
 - unix-like system (posix functionality)

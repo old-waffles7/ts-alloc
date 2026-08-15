@@ -125,14 +125,6 @@ struct arena_config
 };
 typedef struct arena_config arena_cfg_t;
 
-static inline bool
-arena_cfg_isvalid(
-    arena_cfg_t cfg
-){
-    //  TODO
-
-    return true;
-}
 
 /**
  * @brief   default auxiliary mapping function for cpu memory

@@ -16,6 +16,7 @@ gen_heap_struct(bucket, span_t)
 typedef heap(bucket)        bucket_t;
 typedef heap_coord(bucket)  bucket_coord_t;
 
+
 span_t*
 bucket_pop(
     bucket_t   *bucket

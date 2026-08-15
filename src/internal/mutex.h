@@ -138,7 +138,7 @@ mutex_lock(
             );
             if (ret == true)
             {
-                atomic_store_explicit(&(mutex->locker_tid), pthread_self(), memory_order_release);
+                atomic_store_explicit(&(mutex->locker_tid), pthread_self(), memory_order_relaxed);
                 return;
             }
         }
@@ -175,13 +175,13 @@ mutex_unlock(
         return;
     }
 
+    atomic_store_explicit(&(mutex->locker_tid),(pthread_t){0},memory_order_relaxed);
+
     ret = atomic_exchange_explicit(&(mutex->state), FREE, memory_order_release);
     if (ret == LOCKED_WAITERS)
     {
         sem_post(&(mutex->waitq));
     }
-
-    atomic_store_explicit(&(mutex->locker_tid), (pthread_t){0}, memory_order_release); 
 }
 
 

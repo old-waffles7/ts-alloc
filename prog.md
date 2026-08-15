@@ -1,34 +1,9 @@
-implemnt my own mallctl?
-
-/*struct arena
-{
-    region_t   *region_list;
-    pagetrie_t  region_trie;
-    pageheap_t  region_buckets[NCLASS_REGION];
-    pageheap_t  slab_buckets[NCLASS_SLAB];
-    objpool_t   region_dpool;
-    objpool_t   slab_dpool;
-    mutex_t     mutex;
-    atomic_int  nthreads;
-    size_t      nbytes_alloc;
-    size_t      nbytes_cached;
-}*/
-
-tsalloc_szclass_t   szclass;
-
-    szclass = ((tsalloc_szclass_t)tsalloc_get_szclass(arena_cfg->tsalloc_cfg, nbytes));
-    if (((int32_t)szclass) == -1)
-    {
-        set_tsalloc_error(
-            error_ctx,
-            "scache_get_span::scach.c invalid argument nbytes",
-            TSALLOC_INVALID_ARGS
-        );
-        return TSALLOC_INVALID_ARGS;
-    }
 
 todo:
     -   add -fno-strict-aliasing to cmake bc of the casting
+    -   what happens if adjacent spans are freed at same time? span A is coalescing and span B
+        is still looking up pagetrie for adjacent spans or vice versa?
+    -   fix tcache_info in the config script.... rename to tcache_capacity or something
 
 would add later:
     -   functionality to disable/re-enable tcache
@@ -39,3 +14,9 @@ would add later:
         only need 1 instance (fewer wasted pages) since each objpool instance
         calls sys_alloc directly
     -   perhaps manage memory using tsalloc-virtual memory page sizes
+    -   implemnt my own mallctl? would require implementing a parser
+    -   perhaps multiple pagetries if contestion for put/remove operations
+        becomes too much? i do not know how i would implement the hash for 
+        addr -> pagetrie_idx
+    -   document the specific cases in which an error is proced and what type the
+        error is

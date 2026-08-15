@@ -190,7 +190,7 @@ pail_init(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
     tsalloc_errctx_t           *error_ctx,
-    scache_t                   *spancache,
+    scache_t                   *macro,
     pail_t                     *pail,
     ts_szclass_t                szclass
 ){
@@ -206,7 +206,7 @@ pail_init(
     
     *pail   = (pail_t){
         .init_info  = tsconfig_get_slabinfo(glob_state, szclass),
-        .macro      = spancache,
+        .macro      = macro,
         .szclass    = szclass
     };
 

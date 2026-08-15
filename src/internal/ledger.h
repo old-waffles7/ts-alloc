@@ -9,7 +9,7 @@
 #include    "genlist.h"
 
 
-typedef struct thread_loc_cache tcache_t;
+typedef struct thread_local_bcache  tcache_t;
 
 //  forward declaration suffices for structure definitions
 gen_dll_struct(ledger, tcache_t);

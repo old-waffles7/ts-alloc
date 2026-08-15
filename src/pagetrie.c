@@ -215,7 +215,7 @@ pagetrie_insert(
             node2   = node;
         }
         
-        atomic_store_explicit(&node2->data[idx3], data, memory_order_release); 
+        atomic_store_explicit(&node2->data[idx3], ((void*)data), memory_order_release); 
     }
 
     mutex_unlock(&(pagetrie->lock));

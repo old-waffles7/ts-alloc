@@ -27,14 +27,14 @@
  * @struct  thread_loc_cache
  * @brief   represents a thread-local cache of memory blocks
  */
-struct thread_loc_cache
+struct thread_local_bcache
 {
     col_t          *columns;
     glob_t         *macro;
     ledger_coord_t  coord;
     ts_szclass_t    nszclasses; 
 };
-typedef struct thread_loc_cache tcache_t;
+typedef struct thread_local_bcache  tcache_t;
 
 
 /**
@@ -165,6 +165,11 @@ static inline tsalloc_err_t
 tcache_destroy(
     tcache_t   *cache
 ){
+    if (!cache)
+    {
+        return TSALLOC_SUCCESS;
+    }
+    
     int ret;
 
     _tcache_flush(cache);

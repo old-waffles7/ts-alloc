@@ -30,10 +30,10 @@
 struct column
 {
     byte_t        **blocks;
-    ts_szclass_t    szclass;
     size_t          nblocks;
     size_t          capacity;
     size_t          epoch_min_nblocks;
+    ts_szclass_t    szclass;
 };
 typedef struct column   col_t;
 
@@ -130,9 +130,9 @@ col_init(
     capacity    = glob_state->tcache_info[szclass];
     *col        = (col_t){
         .blocks             = (byte_t**)auxil_mem,
-        .szclass            = szclass,
         .capacity           = capacity,
-        .epoch_min_nblocks  = capacity
+        .epoch_min_nblocks  = capacity,
+        .szclass            = szclass
     };
 
     return TSALLOC_SUCCESS;
@@ -150,7 +150,7 @@ col_flush(
     glob_t     *glob,
     col_t      *col
 ){
-    glob_put_batch(glob, col->blocks, col->nblocks);
+    glob_put_batch_inarena(glob, col->blocks, col->nblocks);
 }
 
 
@@ -216,7 +216,7 @@ col_put_block(
         nblocks_put     = col->capacity - nblocks_keep;
         batch           = col->blocks + nblocks_keep;
         col->nblocks   -= nblocks_put;
-        glob_put_batch(glob, batch, nblocks_put);
+        glob_put_batch_inarena(glob, batch, nblocks_put);
     }
 
     col->blocks[col->nblocks]   = block;
@@ -238,7 +238,7 @@ col_decay(
     byte_t    **batch;
 
     batch   = col->blocks + (col->nblocks - col->epoch_min_nblocks);
-    glob_put_batch(glob, batch, col->epoch_min_nblocks);
+    glob_put_batch_inarena(glob, batch, col->epoch_min_nblocks);
 
     col->nblocks           -= col->epoch_min_nblocks;
     col->epoch_min_nblocks  = col->nblocks;

@@ -138,15 +138,7 @@ bin_put_span(
     bin_t              *bin,
     span_t             *span
 ){
-    if ((span->flags.szclass) != (bin->szclass))
-    {
-        set_tsalloc_error(
-            error_ctx,
-            "bin_put_span::bin.h input span has incorrect size-class",
-            TSALLOC_INVALID_ARGS
-        );
-        return TSALLOC_INVALID_ARGS;
-    }
+    tsalloc_err_t   ret;
 
     if (span->flags.state == TSALLOC_SPAN_RETAINED)
     {
@@ -155,16 +147,13 @@ bin_put_span(
     }
     else 
     {
-        tsalloc_err_t   ret;
-
-        // Changed to match the current span_set_state() signature.
         ret = span_set_state(
             arena_cfg,
             error_ctx,
             span,
             TSALLOC_SPAN_DIRTY
         );
-        if (ret != TSALLOC_SUCCESS)
+        if (ret == TSALLOC_AUXIL_MADVISE_ERR)
         {
             append_tsalloc_error_trace(error_ctx);
             return ret;
@@ -196,6 +185,7 @@ bin_remove_span(
     {
         bin->bitmap    &= ~(1 << state);
     }
+    bin->nspans--;
 }
 
 /**
@@ -240,7 +230,6 @@ bin_decay(
             break;
         }
 
-        // Changed to match the current span_set_state() signature.
         ret1    = span_set_state(
             arena_cfg,
             error_ctx,
@@ -254,18 +243,13 @@ bin_decay(
             return ret1;
         }
 
-        // Changed to match the current bin_put_span() signature.
-        ret1 = bin_put_span(
+        //  spans with retained state cannot trigger failure of this function
+        (void)bin_put_span(
             arena_cfg,
             error_ctx, 
             bin, 
             span
         );
-        if (ret1 != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(error_ctx);
-            ret2    = ret1;
-        }
     }
     bin->epoch_min_nspans   = bin->nspans; 
 
