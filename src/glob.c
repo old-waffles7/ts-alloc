@@ -203,36 +203,6 @@ glob_free_block(
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
-glob_decay(
-    glob_t *glob
-){
-    tsalloc_err_t   ret1, ret2;
-
-    ret2    = TSALLOC_SUCCESS;
-    for (uint16_t i = 0; i < glob->narenas; i++)
-    {
-        ret1    = arena_decay(glob->arenas + i);
-        if (ret1 != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(&(glob->error_ctx));
-            ret2    = ret1;
-        }
-    }
-
-    tcache_t   *cache;
-
-    cache   = glob->ledger.head;
-    while (cache)
-    {
-        tcache_decay(cache);
-        //  gen_dll must null-terminate lists
-        cache   = cache->coord.next;
-    }
-
-    return ret2;
-}
-
 
 tsalloc_err_t
 glob_create(
@@ -439,17 +409,6 @@ glob_alloc(
 
     tsalloc_err_t   ret;
 
-    if (glob->glob_state->epoch_max - glob->epoch.alloc <= nbytes)
-    {
-        ret = glob_decay(glob);
-        if (ret != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(&(glob->error_ctx));
-            return ret;
-        }
-        glob->epoch.alloc   = 0;
-    }
-
     if (szreq.isslab == true)
     {
         ret = glob_alloc_block(glob, dest, szreq.szclass, glob->glob_uid);
@@ -467,15 +426,6 @@ glob_alloc(
             append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
-    }
-
-    if (nbytes <= (SIZE_MAX - glob->epoch.alloc))
-    {
-        glob->epoch.alloc  += nbytes;
-    }
-    else
-    {
-        glob->epoch.alloc   = SIZE_MAX;
     }
 
     return TSALLOC_SUCCESS;
@@ -500,30 +450,6 @@ glob_free(
     }
 
     tsalloc_err_t   ret;
-    size_t          nbytes;
-
-    if (origin->flags.is_slab)
-    {
-        nbytes  = tsconfig_get_nbytes_szclass(
-            glob->glob_state, 
-            origin->slabmeta->szclass, 
-            true
-        );
-    }
-    else
-    {
-        nbytes  = origin->nbytes;
-    }
-    if (glob->glob_state->epoch_max - glob->epoch.free <= nbytes)
-    {
-        ret = glob_decay(glob);
-        if (ret != TSALLOC_SUCCESS)
-        {
-            append_tsalloc_error_trace(&(glob->error_ctx));
-            return ret;
-        }
-        glob->epoch.free    = 0;
-    }
 
     if (origin->flags.is_slab)
     {
@@ -546,15 +472,6 @@ glob_free(
 
         arena   = glob->arenas + ((uint16_t)origin->flags.arena_uid);
         arena_put_span(arena, origin);
-    }
-
-    if (nbytes <= (SIZE_MAX - glob->epoch.free))
-    {
-        glob->epoch.free   += nbytes;
-    }
-    else
-    {
-        glob->epoch.free    = SIZE_MAX;
     }
 
     return TSALLOC_SUCCESS;

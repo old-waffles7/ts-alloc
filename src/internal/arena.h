@@ -33,12 +33,41 @@ struct arena
     const glob_alloc_state_t   *glob_state;
     const arena_cfg_t          *arena_cfg;
 
+    struct 
+    {
+        size_t  max;
+        size_t  alloc;
+    } epoch;
+
     tsalloc_errctx_t   *error_ctx;
     scache_t            scache;
     bcache_t            bcache;
     uint16_t            arena_uid;
 };
 typedef struct arena    arena_t;
+
+/**
+ * @brief   decays the arena's span cache
+ *
+ * @param   arena   pointer to arena to have memory decayed
+ *
+ * @return  status code representing success or failure
+ */
+static inline tsalloc_err_t
+_arena_decay(
+    arena_t    *arena
+){
+    tsalloc_err_t   ret;
+
+    ret = scache_decay(arena->arena_cfg, arena->error_ctx, &(arena->scache));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(arena->error_ctx);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
+}
 
 
 /**
@@ -64,7 +93,6 @@ arena_auxil_mem_size(
     return nbytes;
 }
 
-
 /**
  * @brief   returns a block to the arena's block cache
  *
@@ -87,7 +115,6 @@ arena_put_block(
     );
 }
 
-
 /**
  * @brief   returns a span to the arena's span cache
  *
@@ -106,7 +133,6 @@ arena_put_span(
         span
     );
 }
-
 
 /**
  * @brief   retrieves a batch of memory blocks from the arena
@@ -178,28 +204,22 @@ arena_get_span(
         return ret;
     }
 
-    return TSALLOC_SUCCESS;
-}
+    size_t  nbytes;
 
-
-/**
- * @brief   decays the arena's span cache
- *
- * @param   arena   pointer to arena to have memory decayed
- *
- * @return  status code representing success or failure
- */
-static inline tsalloc_err_t
-arena_decay(
-    arena_t    *arena
-){
-    tsalloc_err_t   ret;
-
-    ret = scache_decay(arena->arena_cfg, arena->error_ctx, &(arena->scache));
-    if (ret != TSALLOC_SUCCESS)
+    nbytes  = (*dest)->nbytes;
+    if ((arena->epoch.max - arena->epoch.alloc) <= nbytes)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
-        return ret;
+        ret = _arena_decay(arena);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(arena->error_ctx);
+            return ret;
+        }
+        arena->epoch.alloc  = 0;
+    }
+    else
+    {
+        arena->epoch.alloc += nbytes;
     }
 
     return TSALLOC_SUCCESS;

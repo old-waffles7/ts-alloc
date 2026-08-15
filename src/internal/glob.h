@@ -9,7 +9,6 @@
 
 #include    "../config/tsalloc_config.h"
 
-#include    "os.h"
 #include    "mutex.h"
 #include    "arena.h"
 #include    "ledger.h"
@@ -22,12 +21,6 @@
 struct tsalloc_global_arena
 {
     arena_t    *arenas;
-
-    struct
-    {
-        size_t  free;
-        size_t  alloc;
-    } epoch;
 
     const glob_alloc_state_t   *glob_state;
     arena_cfg_t                 arena_cfg;

@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.20)
-project(tsalloc VERSION 0.7 LANGUAGES C)
+project(tsalloc VERSION 0.26.8 LANGUAGES C)
 set(CMAKE_C_STANDARD 23)    # 11 without specified-width enums
 
 #   option(s)
 option(VERBOSE_TRACE "Enable error stack breadcrumbs" ON)
 #option(VERBOSE_STATS "Enable tracking of stats regarding memory-management" ON)
 
-# Define the target library and compile sources
 add_library(tsalloc SHARED
     src/arena.c
     src/bucket.c
@@ -22,7 +21,6 @@ add_library(tsalloc SHARED
     src/tsalloc.c
 )
 
-# Link required POSIX thread and semaphore dependencies
 find_package(Threads REQUIRED)
 target_link_libraries(tsalloc PRIVATE Threads::Threads)
 

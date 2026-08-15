@@ -1,9 +1,8 @@
 
 todo:
     -   add -fno-strict-aliasing to cmake bc of the casting
-    -   what happens if adjacent spans are freed at same time? span A is coalescing and span B
-        is still looking up pagetrie for adjacent spans or vice versa?
-    -   should i lock arena, tcaches during decay
+    -   make tcache resposnible for triggerting its own decay, same for arenas. remove from
+        glob_t
     -   fix tcache_info in the config script.... rename to tcache_capacity or something
 
 would add later:

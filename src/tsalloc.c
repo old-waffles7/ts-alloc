@@ -93,6 +93,11 @@ tsfree(
     tsalloctr_t    *tsalloctr,
     void           *addr
 ){
+    if (addr == nullptr)
+    {
+        return  TSALLOC_SUCCESS;
+    }
+    
     ts_err_t    ret;
     
     ret = glob_free(tsalloctr, addr);

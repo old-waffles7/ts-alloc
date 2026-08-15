@@ -31,11 +31,18 @@ struct thread_local_bcache
 {
     col_t          *columns;
     glob_t         *macro;
+
+    struct 
+    {
+        size_t  max;
+        size_t  free;
+        size_t  alloc;
+    } epoch;
+
     ledger_coord_t  coord;
     ts_szclass_t    nszclasses; 
 };
 typedef struct thread_local_bcache  tcache_t;
-
 
 /**
  * @brief   calculates the memory required for a thread-local cache
@@ -86,6 +93,24 @@ _tcache_flush(
     }
 }
 
+/**
+ * @brief   decays all columns in a thread-local cache
+ *
+ * @param   cache   pointer to thread-local cache being decayed
+ */
+static inline void
+_tcache_decay(
+    tcache_t   *cache
+){
+    ts_szclass_t    nszclasses;
+
+    nszclasses  = cache->nszclasses;
+    for (ts_szclass_t i = 0; i < nszclasses; i++)
+    {
+        col_decay(cache->macro, cache->columns + i);
+    }
+}
+
 
 /**
  * @brief   creates a thread-local cache
@@ -127,6 +152,7 @@ tcache_create(
     *cache          = (tcache_t){
         .columns    = columns_addr,
         .macro      = glob,
+        .epoch.max  = (glob->glob_state->slab_alloc_max * 2),
         .nszclasses = nszclasses
     };
 
@@ -222,6 +248,23 @@ tcache_get_block(
         return ret;
     }
 
+    size_t  nbytes;
+
+    nbytes  = tsconfig_get_nbytes_szclass(
+        cache->macro->glob_state, 
+        szclass, 
+        true
+    );
+    if ((cache->epoch.max - nbytes) <= cache->epoch.alloc)
+    {
+        _tcache_decay(cache);
+        cache->epoch.alloc  = 0;
+    }
+    else
+    {
+        cache->epoch.alloc += nbytes;
+    }
+
     return TSALLOC_SUCCESS;
 }
 
@@ -244,24 +287,22 @@ tcache_put_block(
         cache->columns + szclass, 
         block
     );
-}
 
+    size_t  nbytes;
 
-/**
- * @brief   decays all columns in a thread-local cache
- *
- * @param   cache   pointer to thread-local cache being decayed
- */
-static inline void
-tcache_decay(
-    tcache_t   *cache
-){
-    ts_szclass_t    nszclasses;
-
-    nszclasses  = cache->nszclasses;
-    for (ts_szclass_t i = 0; i < nszclasses; i++)
+    nbytes  = tsconfig_get_nbytes_szclass(
+        cache->macro->glob_state, 
+        szclass, 
+        true
+    );
+    if ((cache->epoch.max - nbytes) <= cache->epoch.free)
     {
-        col_decay(cache->macro, cache->columns + i);
+        _tcache_decay(cache);
+        cache->epoch.free  = 0;
+    }
+    else
+    {
+        cache->epoch.free  += nbytes;
     }
 }
 

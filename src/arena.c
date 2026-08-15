@@ -32,7 +32,6 @@ arena_init(
         );
         return TSALLOC_INVALID_ARGS;
     }
-
     
     tsalloc_err_t   ret;
     
@@ -40,6 +39,7 @@ arena_init(
         .glob       = glob,
         .glob_state = glob_state,
         .arena_cfg  = arena_cfg,
+        .epoch.max  = glob_state->epoch_max,
         .error_ctx  = error_ctx,
         .arena_uid  = arena_uid
     };
