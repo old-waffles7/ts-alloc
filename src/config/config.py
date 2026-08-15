@@ -42,18 +42,18 @@ class configuration:
         if nbytes_default_span_size > UINT64_MAX: raise ValueError(f"default-span-size exceeds uint64_t max ({UINT64_MAX})")
         if steps_per_pow2 > UINT32_MAX: raise ValueError(f"steps-per-pow2 exceeds uint32_t max ({UINT32_MAX})")
 
-        max_blocks                  = page_size // min_align
+        max_blocks                      = page_size // min_align
 
-        self.page_size              = page_size
-        self.min_align              = min_align
-        self.steps_per_pow2         = steps_per_pow2
-        self.nbytes_slab_alloc_max  = nbytes_slab_alloc_max
-        self.nbytes_epoch_max       = nbytes_epoch_max
-        self.nbytes_default_span_size = nbytes_default_span_size
-        self.nbytes_bitmap          = math.ceil(max_blocks / 64) * 8
+        self.page_size                  = page_size
+        self.min_align                  = min_align
+        self.steps_per_pow2             = steps_per_pow2
+        self.nbytes_slab_alloc_max      = nbytes_slab_alloc_max
+        self.nbytes_epoch_max           = nbytes_epoch_max
+        self.nbytes_default_span_size   = nbytes_default_span_size
+        self.nbytes_bitmap              = math.ceil(max_blocks / 64) * 8
 
-        self.min_align_shift        = int(math.log2(self.min_align))
-        self.steps_per_pow2_shift   = int(math.log2(self.steps_per_pow2))
+        self.min_align_shift            = int(math.log2(self.min_align))
+        self.steps_per_pow2_shift       = int(math.log2(self.steps_per_pow2))
         
     def get_slab_size_classes(
         self
@@ -136,7 +136,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         steps_per_pow2          = 4,
         nbytes_slab_alloc_max   = (1024 * 16),
-        nbytes_epoch_max        = (1024 * 64),
+        nbytes_epoch_max        = (1024 * 32),
         nbytes_default_span_size = (1024 * 1024 * 2)
     ),
     (1024 * 16): configuration(
@@ -144,7 +144,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         steps_per_pow2          = 4,
         nbytes_slab_alloc_max   = (1024 * 16),
-        nbytes_epoch_max        = (1024 * 64),
+        nbytes_epoch_max        = (1024 * 32),
         nbytes_default_span_size = (1024 * 1024 * 2)
     ),
     (1024 * 32): configuration(
@@ -152,7 +152,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         steps_per_pow2          = 4,
         nbytes_slab_alloc_max   = (1024 * 16),
-        nbytes_epoch_max        = (1024 * 64),
+        nbytes_epoch_max        = (1024 * 32),
         nbytes_default_span_size = (1024 * 1024 * 2)
     ),
     (1024 * 64): configuration(
@@ -160,7 +160,7 @@ DEFAULT_CONFIGS = {
         min_align               = 16,
         steps_per_pow2          = 4,
         nbytes_slab_alloc_max   = (1024 * 16),
-        nbytes_epoch_max        = (1024 * 64),
+        nbytes_epoch_max        = (1024 * 32),
         nbytes_default_span_size = (1024 * 1024 * 2)
     ),
     (1024 * 1024 * 2): configuration(
@@ -168,7 +168,7 @@ DEFAULT_CONFIGS = {
         min_align               = 256,
         steps_per_pow2          = 4,
         nbytes_slab_alloc_max   = (1024 * 512),
-        nbytes_epoch_max        = (1024 * 1024 * 32),
+        nbytes_epoch_max        = (1024 * 1024 * 16),
         nbytes_default_span_size = (1024 * 1024 * 32)
     )
 }
