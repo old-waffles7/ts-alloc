@@ -438,8 +438,8 @@ glob_alloc(
         {
             append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
-            glob->epoch.alloc   = 0;
         }
+        glob->epoch.alloc   = 0;
     }
 
     if (szreq.isslab == true)
@@ -459,6 +459,15 @@ glob_alloc(
             append_tsalloc_error_trace(&(glob->error_ctx));
             return ret;
         }
+    }
+
+    if (nbytes <= (SIZE_MAX - glob->epoch.alloc))
+    {
+        glob->epoch.alloc  += nbytes;
+    }
+    else
+    {
+        glob->epoch.alloc   = SIZE_MAX;
     }
 
     return TSALLOC_SUCCESS;
@@ -531,6 +540,15 @@ glob_free(
         arena_put_span(arena, origin);
     }
 
+    if (nbytes <= (SIZE_MAX - glob->epoch.free))
+    {
+        glob->epoch.free   += nbytes;
+    }
+    else
+    {
+        glob->epoch.free    = SIZE_MAX;
+    }
+
     return TSALLOC_SUCCESS;
 }
 
@@ -566,3 +584,6 @@ glob_turnoff_tcache(
 
     return TSALLOC_SUCCESS;
 }
+
+make a fucntion that check whether block/span already in slab/span.isalloc to prevent
+double frees. slab.is_unalloc

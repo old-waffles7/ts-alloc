@@ -96,29 +96,35 @@ sys_aligned_map(
     size_t  align,
     size_t  nbytes
 ){
-    if ((!IS_POWER_OF_TWO(align)) || align < sys_page_size())
+    size_t page_size = sys_page_size();
+
+    if ((!IS_POWER_OF_TWO(align)) || align < page_size)
     {
         return nullptr;
     }
 
-    // overflow
-    if (nbytes > SIZE_MAX - (align - sys_page_size()))
+    if (nbytes > SIZE_MAX - (page_size - 1))
     {
         return nullptr;
     }
-    
+
+    nbytes = ALIGN_UP(nbytes, page_size);
+    if (nbytes > SIZE_MAX - (align - page_size))
+    {
+        return nullptr;
+    }
+
     uint8_t    *raw_mem;
     size_t      nbytes_req;
-    
-    nbytes      = ALIGN_UP(nbytes, sys_page_size());
-    nbytes_req  = nbytes + align - sys_page_size();
+
+    nbytes_req  = nbytes + align - page_size;
     raw_mem     = (uint8_t*)mmap
     (
-        nullptr, 
-        nbytes_req, 
-        PROT_READ | PROT_WRITE, 
-        MAP_PRIVATE | MAP_ANONYMOUS, 
-        -1, 
+        nullptr,
+        nbytes_req,
+        PROT_READ | PROT_WRITE,
+        MAP_PRIVATE | MAP_ANONYMOUS,
+        -1,
         0
     );
 
@@ -142,7 +148,7 @@ sys_aligned_map(
     {
         munmap((void*)raw_addr, prefix_size);
     }
-    
+
     if (suffix_size > 0)
     {
         munmap((void*)(aligned_addr + nbytes), suffix_size);
@@ -150,6 +156,7 @@ sys_aligned_map(
 
     return (void*)aligned_addr;
 }
+
 
 /**
  * @brief   releases raw virtual memory back to the os 
