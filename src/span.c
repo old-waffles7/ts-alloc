@@ -164,15 +164,31 @@ span_split(
         return ret;
     }
 
-    *split                  = (span_t){
-        .flags          = (*origin)->flags,
-        .flags.szclass  = szclass,
-        .addr           = ((*origin)->addr) + origin_nbytes,
-        .nbytes         = split_nbytes
+    union 
+    {
+        uint64_t    raw;
+        struct 
+        { 
+            uint64_t age       : 28;
+            uint64_t szclass   : 16;
+            uint64_t arena_uid : 12;
+            uint64_t state     : 2;
+            uint64_t is_slab   : 1;
+            uint64_t is_alloc  : 1;
+            uint64_t reserved  : 4;
+        } flags;
+    } split_flags;
+
+    split_flags.raw             = (*origin)->flags.raw;
+    split_flags.flags.szclass   = szclass;
+    *split                      = (span_t){
+        .flags.raw  = split_flags.raw,
+        .addr       = ((*origin)->addr) + origin_nbytes,
+        .nbytes     = split_nbytes
     };
 
     (*origin)->nbytes           = origin_nbytes;
-    (*origin)->flags.szclass    = tsconfig_get_szclass(glob_state, origin_nbytes).szclass;
+    (*origin)->flags.szclass    = tsconfig_get_span_szclass(glob_state, origin_nbytes);
     
     *dest   = split;
 

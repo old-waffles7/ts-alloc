@@ -26,6 +26,7 @@ tsalloc_destroy(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        return ret;
     }
 
     return ret;
@@ -43,6 +44,7 @@ tsalloc(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        return ret;
     }
 
     return ret;
@@ -104,6 +106,7 @@ tsfree(
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        return ret;
     }
 
     return ret;

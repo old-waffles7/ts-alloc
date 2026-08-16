@@ -23,11 +23,8 @@ print_error(
     );
 }
 
-
 int main()
 {
-    printf("starting program...\n");
-
     tsalloctr_t    *allocator;
     ts_err_t        ret;
 
@@ -87,6 +84,9 @@ int main()
     );
 
 
+    /*
+        free memory
+    */
     ret = tsfree(allocator, allocated_from_tcache);
     if (ret != TSALLOC_SUCCESS)
     {
@@ -95,7 +95,6 @@ int main()
     }
     printf("free on `allocated_from_tcache`\n");
 
-    
     ret = tsfree(allocator, allocated_from_global_arena);
     if (ret != TSALLOC_SUCCESS)
     {

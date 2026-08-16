@@ -333,7 +333,7 @@ glob_create(
             glob,
             glob_state,
             &(glob->arena_cfg), 
-            nullptr,
+            &(glob->error_ctx),
             &(glob->pagetrie), 
             auxil_mem,
             arena_addr + i,
@@ -346,7 +346,6 @@ glob_create(
             (void)sys_unmap(((void*)raw), nbytes_req);
             return TSALLOC_UNTRACKED_FAILURE;
         }
-
         auxil_mem  += nbytes_arena_auxil_mem;
     }
 

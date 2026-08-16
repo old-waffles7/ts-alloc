@@ -496,7 +496,7 @@ scache_put_span(
     scache_t                   *cache,
     span_t                     *span
 ){
-    span_t         *_span;
+    span_t *_span;
     
     if(span->flags.is_slab)
     {
@@ -505,6 +505,7 @@ scache_put_span(
 
     mutex_lock(&(cache->lock));
 
+        span->flags.is_alloc    = false;
         scache_merge_adj(
             glob_state,
             arena_cfg,
@@ -512,14 +513,8 @@ scache_put_span(
             span,
             &_span
         );
-        //  cannot fail as function will only try to set span state to dirty, no error path
-        (void)bin_put_span(
-            arena_cfg, 
-            nullptr, 
-            cache->bins + ((ts_szclass_t)span->flags.szclass), 
-            _span
-        );
         _span->flags.is_alloc   = false;
+        scache_bin_put(arena_cfg, cache, _span);
 
     mutex_unlock(&(cache->lock));
 }

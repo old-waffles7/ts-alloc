@@ -43,15 +43,19 @@ typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
  */
 struct span
 {
-    struct
+    union 
     {
-        uint64_t    age         : 28;
-        uint64_t    szclass     : 16;
-        uint64_t    arena_uid   : 12;
-        uint64_t    state       : 2;
-        uint64_t    is_slab     : 1;
-        uint64_t    is_alloc    : 1;
-        uint64_t    reserved    : 4;
+        uint64_t    raw;
+        struct
+        {
+            uint64_t    age         : 28;
+            uint64_t    szclass     : 16;
+            uint64_t    arena_uid   : 12;
+            uint64_t    state       : 2;
+            uint64_t    is_slab     : 1;
+            uint64_t    is_alloc    : 1;
+            uint64_t    reserved    : 4;
+        };
     } flags;
 
     union

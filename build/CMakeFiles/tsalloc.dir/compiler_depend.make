@@ -32,7 +32,6 @@ CMakeFiles/tsalloc.dir/src/arena.c.o: /home/michael/Documents/dev/ts-alloc/src/a
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -279,7 +278,6 @@ CMakeFiles/tsalloc.dir/src/bucket.c.o: /home/michael/Documents/dev/ts-alloc/src/
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -535,7 +533,6 @@ CMakeFiles/tsalloc.dir/src/glob.c.o: /home/michael/Documents/dev/ts-alloc/src/gl
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -791,7 +788,6 @@ CMakeFiles/tsalloc.dir/src/ledger.c.o: /home/michael/Documents/dev/ts-alloc/src/
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -1021,7 +1017,6 @@ CMakeFiles/tsalloc.dir/src/objpool.c.o: /home/michael/Documents/dev/ts-alloc/src
   /home/michael/Documents/dev/ts-alloc/src/internal/os.h \
   /usr/include/asm-generic/errno-base.h \
   /usr/include/asm-generic/errno.h \
-  /usr/include/assert.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
   /usr/include/features.h \
@@ -1095,7 +1090,6 @@ CMakeFiles/tsalloc.dir/src/pagetrie.c.o: /home/michael/Documents/dev/ts-alloc/sr
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -1342,7 +1336,6 @@ CMakeFiles/tsalloc.dir/src/records.c.o: /home/michael/Documents/dev/ts-alloc/src
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -1589,7 +1582,6 @@ CMakeFiles/tsalloc.dir/src/registry.c.o: /home/michael/Documents/dev/ts-alloc/sr
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -1838,7 +1830,6 @@ CMakeFiles/tsalloc.dir/src/scache.c.o: /home/michael/Documents/dev/ts-alloc/src/
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -2085,7 +2076,6 @@ CMakeFiles/tsalloc.dir/src/slab.c.o: /home/michael/Documents/dev/ts-alloc/src/sl
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -2332,7 +2322,6 @@ CMakeFiles/tsalloc.dir/src/span.c.o: /home/michael/Documents/dev/ts-alloc/src/sp
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -2587,7 +2576,6 @@ CMakeFiles/tsalloc.dir/src/tsalloc.c.o: /home/michael/Documents/dev/ts-alloc/src
   /usr/include/asm-generic/int-ll64.h \
   /usr/include/asm-generic/posix_types.h \
   /usr/include/asm-generic/types.h \
-  /usr/include/assert.h \
   /usr/include/endian.h \
   /usr/include/errno.h \
   /usr/include/features-time64.h \
@@ -2861,10 +2849,6 @@ CMakeFiles/tsalloc.dir/src/ledger.c.o:
 
 /home/michael/Documents/dev/ts-alloc/src/objpool.c:
 
-CMakeFiles/tsalloc.dir/src/pagetrie.c.o:
-
-/home/michael/Documents/dev/ts-alloc/src/ledger.c:
-
 /usr/include/x86_64-linux-gnu/bits/waitstatus.h:
 
 /usr/lib/x86_64-linux-gnu/crtn.o:
@@ -2943,6 +2927,8 @@ CMakeFiles/tsalloc.dir/src/objpool.c.o:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/include/ia32intrin.h:
 
+/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+
 /usr/include/x86_64-linux-gnu/bits/semaphore.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
@@ -3007,17 +2993,9 @@ CMakeFiles/tsalloc.dir/src/bucket.c.o:
 
 /home/michael/Documents/dev/ts-alloc/src/internal/glob.h:
 
-/usr/lib/gcc/x86_64-linux-gnu/15/include/avx10_2-512bf16intrin.h:
+CMakeFiles/tsalloc.dir/src/pagetrie.c.o:
 
-/usr/include/x86_64-linux-gnu/bits/long-double.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/sm4intrin.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/adxintrin.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/avxvnniintrin.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/movdirintrin.h:
+/home/michael/Documents/dev/ts-alloc/src/ledger.c:
 
 /home/michael/Documents/dev/ts-alloc/src/internal/genlist.h:
 
@@ -3121,8 +3099,6 @@ CMakeFiles/tsalloc.dir/src/records.c.o:
 
 /home/michael/Documents/dev/ts-alloc/src/internal/pail.h:
 
-/usr/include/assert.h:
-
 /usr/include/x86_64-linux-gnu/bits/mman-map-flags-generic.h:
 
 /home/michael/Documents/dev/ts-alloc/src/internal/common.h:
@@ -3144,18 +3120,6 @@ CMakeFiles/tsalloc.dir/src/records.c.o:
 /usr/include/features-time64.h:
 
 /usr/include/features.h:
-
-/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
-
-/usr/include/semaphore.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/avx512bf16intrin.h:
-
-/home/michael/Documents/dev/ts-alloc/src/internal/bin.h:
-
-/usr/lib/gcc/x86_64-linux-gnu/15/include/bmiintrin.h:
-
-/usr/include/linux/posix_types.h:
 
 /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h:
 
@@ -3187,6 +3151,18 @@ CMakeFiles/tsalloc.dir/src/records.c.o:
 
 /usr/include/sched.h:
 
+/usr/include/x86_64-linux-gnu/bits/stdint-least.h:
+
+/usr/include/linux/posix_types.h:
+
+/usr/include/semaphore.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/avx512bf16intrin.h:
+
+/home/michael/Documents/dev/ts-alloc/src/internal/bin.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/bmiintrin.h:
+
 /usr/include/endian.h:
 
 /usr/include/stdint.h:
@@ -3211,7 +3187,17 @@ CMakeFiles/tsalloc.dir/src/slab.c.o:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/include/avx10_2-512convertintrin.h:
 
-/usr/include/x86_64-linux-gnu/bits/wordsize.h:
+/usr/lib/gcc/x86_64-linux-gnu/15/include/avx10_2-512bf16intrin.h:
+
+/usr/include/x86_64-linux-gnu/bits/long-double.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/sm4intrin.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/adxintrin.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/avxvnniintrin.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/15/include/movdirintrin.h:
 
 /usr/lib/gcc/x86_64-linux-gnu/15/crtendS.o:
 

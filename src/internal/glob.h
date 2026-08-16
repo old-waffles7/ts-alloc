@@ -39,22 +39,21 @@ static inline arena_t*
 glob_claim_arena(
     glob_t *glob
 ){
-    arena_t    *arena;
-    uint32_t    arena_idx;
+    uint32_t current_idx;
+    uint32_t next_idx;
 
-    (void)atomic_compare_exchange_strong_explicit(
-        &(glob->arena_idx), 
-        &(glob->narenas), 
-        0, 
-        memory_order_release, 
-        memory_order_relaxed
-    );
+    current_idx = atomic_load_explicit(&(glob->arena_idx), memory_order_relaxed);
+    do 
+    {
+        next_idx    = (current_idx + 1 >= glob->narenas)? 0 : current_idx + 1;
+    } while (!atomic_compare_exchange_weak_explicit(
+                &(glob->arena_idx), 
+                &current_idx, 
+                next_idx, 
+                memory_order_release, 
+                memory_order_relaxed));
 
-    arena_idx   = atomic_fetch_add_explicit(&(glob->arena_idx), 1, memory_order_release);
-
-    arena   = glob->arenas + arena_idx;
-
-    return arena;
+    return glob->arenas + current_idx;
 }
 
 //  warning blocks must be valid. i.e they must be cut from spans initialized to slabs

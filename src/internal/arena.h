@@ -188,7 +188,7 @@ arena_get_span(
     ts_szclass_t    szclass
 ){
     tsalloc_err_t   ret;
-    
+
     ret = scache_get_span(
         nullptr, 
         arena->glob_state, 

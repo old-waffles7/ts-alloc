@@ -12,6 +12,9 @@
 #define COMMON_H
 
 
+#define     TSALLOC_DEFAULT_ARG     0
+
+
 #define     _POSIX_C_SOURCE 200112L
 #if defined(__linux__)
     #ifndef _GNU_SOURCE

@@ -227,6 +227,11 @@
             return;                                                                                 \
         }                                                                                           \
                                                                                                     \
+        if (!node->_coord_field.prev)                                                               \
+        {                                                                                           \
+            return;                                                                                 \
+        }                                                                                           \
+                                                                                                    \
         if (node->_coord_field.prev->_coord_field.childlist.head == node)                           \
         {                                                                                           \
             node->_coord_field.prev->_coord_field.childlist.head    = node->_coord_field.next;      \

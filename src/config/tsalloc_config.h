@@ -58,7 +58,7 @@ tsconfig_isslab_alloc(
 static inline tsalloc_szreq_t
 tsconfig_get_szclass(
     const tsalloc_cfg_t    *cfg,
-    size_t  nbytes
+    size_t                  nbytes
 ){
     tsalloc_szreq_t req;
 
@@ -102,6 +102,43 @@ tsconfig_get_szclass(
     req.isslab  = false;
     
     return req;
+}
+
+static inline ts_szclass_t
+tsconfig_get_span_szclass(
+    const glob_alloc_state_t   *glob_state,
+    size_t                      nbytes
+){
+    if ((nbytes == 0 )|| (nbytes > TSALLOC_ALLOC_MAX))
+    {
+        return (ts_szclass_t)(-1);
+    }
+
+    size_t  req_nbytes;
+    size_t  page_shift;
+    size_t  base_shift;
+    size_t  epoch;
+    size_t  epoch_base_nbytes;
+    size_t  offset;
+
+    req_nbytes  = nbytes - 1;
+    page_shift  = (size_t)__builtin_ctzll(glob_state->page_size);
+    base_shift  = page_shift + (glob_state->steps_per_pow2_shift);
+    
+    if ((req_nbytes >> base_shift) == 0)
+    {
+        epoch               = 0;
+        epoch_base_nbytes   = 0;
+    }
+    else
+    {
+        epoch             = 63 - __builtin_clzll((req_nbytes >> base_shift));
+        epoch_base_nbytes = (1ULL << base_shift) * ((1ULL << epoch) - 1);
+    }
+    
+    offset  = (req_nbytes - epoch_base_nbytes) >> (page_shift + epoch);
+
+    return (ts_szclass_t)((epoch << (glob_state->steps_per_pow2_shift)) + offset);
 }
 
 /*
