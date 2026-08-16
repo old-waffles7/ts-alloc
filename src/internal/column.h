@@ -147,12 +147,21 @@ col_init(
  * @param   glob    pointer to global allocator
  * @param   col     pointer to column being flushed
  */
-static inline void
+static inline tsalloc_err_t
 col_flush(
     glob_t     *glob,
     col_t      *col
 ){
-    glob_put_batch_inarena(glob, col->blocks, col->nblocks);
+    tsalloc_err_t   ret;
+
+    ret = glob_put_batch_inarena(glob, col->blocks, col->nblocks);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(&(glob->error_ctx));
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
 }
 
 

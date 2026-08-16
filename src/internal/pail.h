@@ -20,7 +20,6 @@
 #include    "mutex.h"
 #include    "scache.h"
 #include    "registry.h"
-#include    "pagetrie.h"
 #include    "arenaconfig.h"
 
 
@@ -144,35 +143,49 @@ _pail_get_block(
  *
  * @warning @p slab must be registered in global pagetrie
  */
-static inline void
+static inline tsalloc_err_t
 _pail_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
     span_t                     *slab,
-    byte_t                     *block
+    byte_t                     *block,
+    bool                        flush_iffull
 ){
     slab_put_block(slab, ((void*)block));
 
-    bool    isfull;
+    bool            isfull;
+    tsalloc_err_t   ret;
 
     isfull  = (slab->slabmeta->nblocks_free == pail->init_info->nblocks);
-    if (isfull && (pail->nslabs > 1))
+    if (flush_iffull && isfull && (pail->nslabs > 1))
     {
         registry_remove(&(pail->slabs), slab);
+        
         //  slab must be pagetrie
-        scache_put_span(
+        ret = scache_put_span(
             glob_state, 
             arena_cfg, 
+            error_ctx, 
             pail->macro, 
             slab
         );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            registry_push(&(pail->slabs), slab);
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+
         pail->nslabs--;
     }
     else if (slab->slabmeta->nblocks_free == 1)
     {
         registry_push(&(pail->slabs), slab);
     }
+
+    return TSALLOC_SUCCESS;
 }
 
 
@@ -293,12 +306,15 @@ pail_get_batch(
                 for (int j = 0; j < i; j++) 
                 {
                     slab    = scache_query(pail->macro, dest[j]);
-                    _pail_put_block(
+                    //  cannot fail as flush can never be procced
+                    (void)_pail_put_block(
                         glob_state, 
                         arena_cfg, 
+                        nullptr, 
                         pail, 
-                        slab,
-                        dest[j]
+                        slab, 
+                        dest[j],
+                        false
                     );
                 }
                 mutex_unlock(&(pail->lock));
@@ -321,25 +337,38 @@ pail_get_batch(
  * @param   slab        pointer to the slab containing the block
  * @param   block       pointer to the block being returned
  */
-static inline void
+static inline tsalloc_err_t
 pail_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
     span_t                     *slab,
     byte_t                     *block
 ){    
+    tsalloc_err_t   ret;
+
     mutex_lock(&(pail->lock));
 
-    _pail_put_block(
-        glob_state, 
-        arena_cfg, 
-        pail, 
-        slab, 
-        block
-    );
+        ret = _pail_put_block(
+            glob_state, 
+            arena_cfg, 
+            error_ctx, 
+            pail, 
+            slab, 
+            block, 
+            true
+        );
     
     mutex_unlock(&(pail->lock));
+
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
 }
 
 

@@ -42,7 +42,7 @@ typedef enum TSALLOC_ERROR  tsalloc_err_t;
 typedef enum TSALLOC_ERROR  ts_err_t;
 
 
-struct tsalloc_err_ctx
+struct tsalloc_error_ctx
 {
     #ifdef  OPT_TRACE_ERRORS    // CMake option
         char    trace[512]; 
@@ -55,7 +55,8 @@ struct tsalloc_err_ctx
     tsalloc_err_t   error_code;
 };
 
-typedef struct tsalloc_err_ctx  tsalloc_errctx_t;
+typedef struct tsalloc_error_ctx    tsalloc_errctx_t;
+typedef struct tsalloc_error_ctx    ts_errctx_t;
 
 
 static inline void 

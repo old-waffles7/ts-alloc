@@ -87,15 +87,29 @@ scache_find_nonempty_bin(
     return false;
 }
 
-static inline void 
+static inline tsalloc_err_t 
 scache_bin_remove(
-    scache_t   *cache,
-    span_t     *span
+    const arena_cfg_t  *arena_cfg,
+    tsalloc_errctx_t   *error_ctx,
+    scache_t           *cache,
+    span_t             *span
 ){
-    bin_t  *bin;
+    bin_t          *bin;
+    tsalloc_err_t   ret;
 
     bin = cache->bins + span->flags.szclass;
-    bin_remove_span(bin, span);
+    ret = bin_remove_span(
+        arena_cfg, 
+        error_ctx, 
+        bin,
+        span
+    );  
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
     if (bin_isempty(bin))
     {
         scache_set_bitmap(
@@ -104,6 +118,8 @@ scache_bin_remove(
             false
         );
     }
+
+    return TSALLOC_SUCCESS;
 }
 
 static inline void
@@ -235,23 +251,58 @@ scache_mint_span(
 }
 
 //  span must be in pagetrie
-static inline void
+static inline tsalloc_err_t
 scache_merge_adj(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *span,
     span_t                    **dest
 ){
-    span_t *lspan;
-    span_t *rspan;
-    span_t *mspan;
+    span_t     *lspan;
+    span_t     *rspan;
+    span_t     *mspan;
+    bool        lmerge, rmerge;
+    ts_err_t    ret;
 
     span_get_adj(cache->pagetrie, span, &lspan, &rspan);
+    lmerge  = span_can_merge(arena_cfg, lspan, span);
+    rmerge  = span_can_merge(arena_cfg, span, rspan);
 
-    if (span_can_merge(arena_cfg, lspan, span))
+    //  remove spans to be merged from bins
+    if (lmerge)
     {
-        scache_bin_remove(cache, lspan);
+        ret = scache_bin_remove(
+            arena_cfg, 
+            error_ctx, 
+            cache, 
+            lspan
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+    }
+    if (rmerge)
+    {
+        ret = scache_bin_remove(
+            arena_cfg, 
+            error_ctx, 
+            cache, 
+            rspan
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+    }
+
+    //  merge spans
+    if (lmerge)
+    {
         span_coalesce(
             glob_state, 
             arena_cfg, 
@@ -263,9 +314,8 @@ scache_merge_adj(
         );
         span    = mspan;
     }
-    if (span_can_merge(arena_cfg, span, rspan))
+    if (rmerge)
     {
-        scache_bin_remove(cache, rspan);
         span_coalesce(
             glob_state, 
             arena_cfg, 
@@ -288,6 +338,8 @@ scache_merge_adj(
     );
 
     *dest   = span;
+
+    return TSALLOC_SUCCESS;
 }
 
 //  span must be in pagetrie and not in a bin, szclass must be valid
@@ -504,14 +556,16 @@ scache_destroy(
 }
 
 //  warning span must already be in pagetrie
-void
+tsalloc_err_t
 scache_put_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *span
 ){
-    span_t *_span;
+    span_t     *_span;
+    ts_err_t    ret;
     
     if(span->flags.is_slab)
     {
@@ -521,17 +575,26 @@ scache_put_span(
     mutex_lock(&(cache->lock));
 
         span->flags.is_alloc    = false;
-        scache_merge_adj(
-            glob_state,
-            arena_cfg,
-            cache,
-            span,
+        ret = scache_merge_adj(
+            glob_state, 
+            arena_cfg, 
+            error_ctx, 
+            cache, 
+            span, 
             &_span
         );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            mutex_unlock(&(cache->lock));
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
         _span->flags.is_alloc   = false;
         scache_bin_put(arena_cfg, cache, _span);
 
     mutex_unlock(&(cache->lock));
+
+    return TSALLOC_SUCCESS;
 }
 
 tsalloc_err_t

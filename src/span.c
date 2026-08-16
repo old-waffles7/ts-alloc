@@ -287,6 +287,31 @@ span_set_state(
             break;
         }
 
+        case TSALLOC_SPAN_UNRETAINED:
+        {
+            if (arena_cfg->auxil_madvise) 
+            {
+                int ret;
+                ret = arena_cfg->auxil_madvise(
+                    (arena_cfg->extra),
+                    ((void*)(span->addr)),
+                    nbytes,
+                    TSALLOC_ADVISE_UNRETAIN
+                );
+                if (ret != 0)
+                {
+                    set_tsalloc_error(
+                        error_ctx,
+                        "span_set_state::span.h auxilliary madvise error",
+                        TSALLOC_AUXIL_MADVISE_ERR
+                    );
+                    return TSALLOC_AUXIL_MADVISE_ERR;
+                }
+            }
+            span->flags.state   = TSALLOC_SPAN_DIRTY;
+            break;
+        }
+
         default:
             set_tsalloc_error(
                     error_ctx,

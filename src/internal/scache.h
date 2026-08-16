@@ -155,10 +155,11 @@ scache_destroy(
  *
  * @warning the span must already be registered in the cache's pagetrie
  */
-void
+tsalloc_err_t
 scache_put_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *span
 );

@@ -80,17 +80,25 @@ _tcache_mem_size(
  *
  * @param   cache   pointer to thread-local cache being flushed
  */
-static inline void
+static inline tsalloc_err_t
 _tcache_flush(
     tcache_t   *cache
 ){
     ts_szclass_t    nszclasses;
+    tsalloc_err_t   ret;
     
     nszclasses  = cache->nszclasses;
     for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
-        col_flush(cache->macro, cache->columns + i);
+        ret = col_flush(cache->macro, cache->columns + i);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(&(glob->error_ctx));
+            return ret;
+        }
     }
+    
+    return TSALLOC_SUCCESS;
 }
 
 /**
@@ -201,9 +209,14 @@ tcache_destroy(
     
     int ret;
 
-    _tcache_flush(cache);
-    ret = sys_unmap(((void*)cache), _tcache_mem_size(cache->macro->glob_state));
+    ret = _tcache_flush(cache);
+    if (((tsalloc_err_t)ret) != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(cache->macro->error_ctx);
+        return ret;
+    }
 
+    ret = sys_unmap(((void*)cache), _tcache_mem_size(cache->macro->glob_state));
     if (ret != 0)
     {
         set_tsalloc_error(

@@ -100,19 +100,29 @@ arena_auxil_mem_size(
  * @param   slab    pointer to slab containing the block
  * @param   block   block being returned
  */
-static inline void
+static inline tsalloc_err_t
 arena_put_block(
     arena_t    *arena,
     span_t     *slab,
     byte_t     *block
 ){
-    bcache_put_block(
+    tsalloc_err_t ret;
+
+    ret = bcache_put_block(
         arena->glob_state, 
         arena->arena_cfg, 
+        arena->error_ctx,
         &(arena->bcache), 
         slab, 
         block
     );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(&(glob->error_ctx));
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
 }
 
 /**
@@ -121,14 +131,15 @@ arena_put_block(
  * @param   arena   pointer to arena receiving the span
  * @param   span    pointer to span being returned
  */
-static inline void
+static inline tsalloc_err_t
 arena_put_span(
     arena_t    *arena,
     span_t     *span
 ){
-    scache_put_span(
+    return scache_put_span(
         arena->glob_state, 
         arena->arena_cfg, 
+        arena->error_ctx, 
         &(arena->scache), 
         span
     );

@@ -111,22 +111,18 @@ bin_get_span(
     span    = bucket_pop(&(bin->buckets[idx]));
     if (idx == TSALLOC_SPAN_RETAINED)
     {
-        int ret;
+        tsalloc_err_t   ret;
 
-        ret = arena_cfg->auxil_madvise(
-            arena_cfg->extra,
-            ((void*)span->addr),
-            span->nbytes,
-            TSALLOC_ADVISE_UNRETAIN
+        ret = span_set_state(
+            arena_cfg, 
+            error_ctx, 
+            span, 
+            TSALLOC_SPAN_UNRETAINED
         );
-        if (ret != 0)
+        if (ret != TSALLOC_SUCCESS)
         {
             bucket_insert(&(bin->buckets[idx]), span);
-            set_tsalloc_error(
-                error_ctx,
-                "bin_get_span::bin.h auxil_madvise failure",
-                TSALLOC_AUXIL_MADVISE_ERR
-            );
+            append_tsalloc_error_trace(error_ctx);
             return TSALLOC_AUXIL_MADVISE_ERR;
         }
     }
@@ -197,20 +193,43 @@ bin_put_span(
  * @param   bin     pointer to the bin containing the span
  * @param   span    pointer to the span being removed
  */
-static inline void
+static inline tsalloc_err_t
 bin_remove_span(
-    bin_t  *bin,
-    span_t *span
+    const arena_cfg_t  *arena_cfg,
+    tsalloc_errctx_t   *error_ctx,
+    bin_t              *bin,
+    span_t             *span
 ){
     tsalloc_span_state_t    state;
 
     state   = (tsalloc_span_state_t)span->flags.state;
     bucket_remove(&(bin->buckets[state]), span);
+
+    if (state == TSALLOC_SPAN_RETAINED)
+    {
+        tsalloc_err_t   ret;
+
+        ret = span_set_state(
+            arena_cfg, 
+            error_ctx, 
+            span, 
+            TSALLOC_SPAN_UNRETAINED
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            bucket_insert(&(bin->buckets[state]), span);
+            append_tsalloc_error_trace(error_ctx);
+            return TSALLOC_AUXIL_MADVISE_ERR;
+        }
+    }
+
     if (bin->buckets[state].root == nullptr) 
     {
         bin->bitmap    &= ~(1 << state);
     }
     bin->nspans--;
+
+    return TSALLOC_SUCCESS;
 }
 
 /**

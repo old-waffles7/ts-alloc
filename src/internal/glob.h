@@ -57,21 +57,29 @@ glob_claim_arena(
 }
 
 //  warning blocks must be valid. i.e they must be cut from spans initialized to slabs
-static inline void 
+static inline tsalloc_err_t 
 glob_put_batch_inarena(
     glob_t     *glob,
     byte_t    **batch,
     size_t      nblocks
 ){
-    arena_t    *arena;
-    span_t     *slab;
+    arena_t        *arena;
+    span_t         *slab;
+    tsalloc_err_t   ret;
 
     for (size_t i = 0; i < nblocks; i++)
     {
         slab    = (span_t*)pagetrie_lookup(&(glob->pagetrie), batch[i]);
         arena   = glob->arenas + ((uint16_t)slab->flags.arena_uid);
-        arena_put_block(arena, slab, batch[i]);
+        ret     = arena_put_block(arena, slab, batch[i]);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(&(glob->error_ctx));
+            return ret;
+        }
     }
+
+    return TSALLOC_SUCCESS;
 }
 
 static inline void

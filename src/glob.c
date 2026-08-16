@@ -470,7 +470,12 @@ glob_free(
         arena_t    *arena;
 
         arena   = glob->arenas + ((uint16_t)origin->flags.arena_uid);
-        arena_put_span(arena, origin);
+        ret     = arena_put_span(arena, origin);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(&(glob->error_ctx));
+            return ret;
+        }
     }
 
     return TSALLOC_SUCCESS;

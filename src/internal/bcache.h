@@ -203,21 +203,32 @@ bcache_get_batch(
  * @param   slab        slab containing the block
  * @param   block       pointer to the memory block being returned
  */
-static inline void 
+static inline tsalloc_err_t 
 bcache_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
     bcache_t                   *cache,
     span_t                     *slab,
     byte_t                     *block
 ){
-    pail_put_block(
+    tsalloc_err_t   ret;
+    
+    ret = pail_put_block(
         glob_state, 
         arena_cfg, 
+        error_ctx,
         cache->pails + ((ts_szclass_t)slab->slabmeta->szclass), 
         slab, 
         block
     );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
 }
 
 
