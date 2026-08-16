@@ -145,7 +145,7 @@ tcache_create(
     tcache_t       *cache;
     ts_szclass_t    nszclasses;
 
-    nszclasses      = glob->glob_state->nszclasses_span;
+    nszclasses      = glob->glob_state->nszclasses_slab;
     columns_addr    = (col_t*)(raw + sizeof(tcache_t));
     auxil_mems_addr = ((byte_t*)columns_addr) + nszclasses * sizeof(col_t);
     cache           = (tcache_t*)raw;

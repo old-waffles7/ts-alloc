@@ -67,6 +67,8 @@ _col_refill(
         return ret;
     }
 
+    col->nblocks   += nblocks;
+
     return TSALLOC_SUCCESS;
 }
 

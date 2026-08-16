@@ -14,6 +14,8 @@
 #include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
+#include    <string.h>
+
 
 static inline void
 scache_set_bitmap(
@@ -208,7 +210,10 @@ scache_mint_span(
         return ret;
     }
 
-    records_push(&(cache->origins), span);
+    if (arena_cfg->unmap_on_termination)
+    {
+        records_push(&(cache->origins), span);
+    }
     *dest   = span;
 
     return TSALLOC_SUCCESS;
@@ -403,7 +408,7 @@ scache_init(
         bin_init(&(cache->bins[i]), i);
     }
 
-    memset(cache->bitmap, 0, nbytes_bitmap);
+    (void)memset(cache->bitmap, 0, nbytes_bitmap);
 
     return TSALLOC_SUCCESS;
 }

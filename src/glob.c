@@ -332,7 +332,7 @@ glob_create(
         ret = arena_init(
             glob,
             glob_state,
-            &_arena_cfg, 
+            &(glob->arena_cfg), 
             nullptr,
             &(glob->pagetrie), 
             auxil_mem,

@@ -5,6 +5,8 @@
 #include    "internal/span.h"
 #include    "internal/objpool.h"
 
+#include    <string.h>
+
 
 tsalloc_err_t 
 slab_init(

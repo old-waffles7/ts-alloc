@@ -10,6 +10,8 @@
 #include    "internal/pagetrie.h"
 #include    "internal/arenaconfig.h"
 
+#include    <string.h>
+
 
 tsalloc_err_t
 span_create(

@@ -6,5 +6,5 @@ C_DEFINES = -DOPT_TRACE_ERRORS -Dtsalloc_EXPORTS
 
 C_INCLUDES = 
 
-C_FLAGS = -std=gnu2x -fPIC
+C_FLAGS = -g -std=gnu2x -fPIC
 
