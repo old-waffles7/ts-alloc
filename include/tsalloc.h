@@ -51,7 +51,8 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
 
     enum TSALLOC_ADVISE_FLAG    : uint8_t
     {
-        TSALLOC_ADVISE_RETAIN   ///< flags physical pages backing argued virtual address for immediate reclamation by mapper, automatically provides cleaned pages on next access of virtual address
+        TSALLOC_ADVISE_RETAIN,  ///< flags unused physical pages for reclaimation by mapper, maintains virtual address
+        TSALLOC_ADVISE_UNRETAIN ///< remaps physical pages to a virutal address formerly put into retained state via `TSALLOC_ADVISE_RETAIN`
     };
     typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
 
@@ -131,7 +132,7 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
         void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
             
         size_t          pagesize;                   ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-        size_t          def_alloc_align;
+        size_t          def_alloc_align;            ///< deafult allignment for allocations
         ts_szclass_t    default_new_span_szclass;
         uint16_t        lcpu_arena_count;
 

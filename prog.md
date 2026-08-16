@@ -1,9 +1,8 @@
 
 ## todo
 *   add -fno-strict-aliasing to cmake bc of the casting
-*   make tcache resposnible for triggerting its own decay, same for arenas. remove from
-    glob_t
 *   fix tcache_info in the config script.... rename to tcache_capacity or something
+*   tsalloc_aligned
 
 ## would add later
 *   functionality to disable/re-enable tcache

@@ -10,6 +10,7 @@ print_error(
 ){
     tsalloc_errstate    state;
 
+    //  see "tsalloc.h" for all `ts_err_t` values and their corresponding descriptions
     ts_req_errstate(allocator, &state);
     printf(
         "TSALLOC_ERROR_CODE:    %d\n"
@@ -28,16 +29,10 @@ int main()
     tsalloctr_t    *allocator;
     ts_err_t        ret;
 
-    /*
-        initialize a memory allocator
-
-        TSALLOC_DEFAULT_ARG is a macro provided by libtsalloc that, when argued, initializes
-        `tsalloctr_t` instances to be backed by RAM pages with 16 byte allocation alignment
-    */
+    //  initialize a memory allocator with TSALLOC_DEFAULT_ARG. this is a macro provided by 
+    //  libtsalloc that, when argued, initializes `tsalloctr_t` instances to be backed by RAM pages 
+    //  and guarantees that allocations have 16 byte alignment.
     ret = tsalloc_create(TSALLOC_DEFAULT_ARG, &allocator);
-    /*
-        see "tsalloc.h" for all `ts_err_t` values and their corresponding descriptions
-    */
     if (ret != TSALLOC_SUCCESS)
     {
         print_error(allocator);
@@ -49,10 +44,8 @@ int main()
     void   *allocated_from_tcache;
     void   *allocated_from_global_arena;
 
-    /*
-        By the default configuration set via `TSALLOC_DEFAULT_ARG`, this 8 KiB allocation will be
-        a rapid allocation made from a `tcache_t` instance. 
-    */
+    //  by the default configuration set via `TSALLOC_DEFAULT_ARG`, this 8 KiB allocation will be
+    //  a rapid allocation made from a `tcache_t` instance. 
     ret = tsalloc(allocator, &allocated_from_tcache, (1024ULL * 8ULL));
     if (ret != TSALLOC_SUCCESS)
     {
@@ -66,10 +59,8 @@ int main()
         *((uint64_t*)allocated_from_tcache)
     );
 
-    /*
-        By the default configuration set via `TSALLOC_DEFAULT_ARG`, this 64 KiB allocation will be
-        a slower, bulk allocation, made from an `arena_t` instance.
-    */
+    //  by the default configuration set via `TSALLOC_DEFAULT_ARG`, this 64 KiB allocation will be
+    //  a slower, bulk allocation made from a global `arena_t` instance. 
     ret = tsalloc(allocator, &allocated_from_global_arena, (1024ULL * 64ULL));
     if (ret != TSALLOC_SUCCESS)
     {
@@ -84,9 +75,7 @@ int main()
     );
 
 
-    /*
-        free memory
-    */
+    //  free `tcache_t` backed allocation
     ret = tsfree(allocator, allocated_from_tcache);
     if (ret != TSALLOC_SUCCESS)
     {
@@ -95,6 +84,7 @@ int main()
     }
     printf("free on `allocated_from_tcache`\n");
 
+    //  free `arena_t` backed allocation
     ret = tsfree(allocator, allocated_from_global_arena);
     if (ret != TSALLOC_SUCCESS)
     {
@@ -104,9 +94,7 @@ int main()
     printf("free on `allocated_from_global_arena`\n");
 
 
-    /*
-        destroy allocator
-    */
+    //  remember to destroy the allocator
     ret = tsalloc_destroy(allocator);
     if (ret != TSALLOC_SUCCESS)
     {

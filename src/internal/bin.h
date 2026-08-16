@@ -16,7 +16,6 @@
 #include    "../config/tsalloc_config.h"
 
 #include    "span.h"
-#include    "mutex.h"
 #include    "bucket.h"
 #include    "arenaconfig.h"
 
@@ -72,7 +71,7 @@ bin_isempty(
  *
  * @return  index of the first non-empty bucket, or `-1` if all buckets are empty
  */
-static inline int16_t
+static inline int8_t
 bin_first_nonempty_bucket(
     uint8_t bitmap
 ){
@@ -91,34 +90,60 @@ bin_first_nonempty_bucket(
  *
  * @return  pointer to the retrieved span, or `nullptr` if the bin is empty
  */
-static inline span_t*
+static inline tsalloc_err_t
 bin_get_span(
-    bin_t  *bin
+    const arena_cfg_t  *arena_cfg,
+    tsalloc_errctx_t   *error_ctx,
+    span_t            **dest,
+    bin_t              *bin
 ){
-    int16_t idx;
+    int8_t  idx;
 
     idx = bin_first_nonempty_bucket(bin->bitmap);
     if (idx < 0)
     {
-        return nullptr;
+        *dest   = nullptr;
+        return TSALLOC_SUCCESS;
     }
 
     span_t *span;
 
     span    = bucket_pop(&(bin->buckets[idx]));
+    if (idx == TSALLOC_SPAN_RETAINED)
+    {
+        int ret;
 
+        ret = arena_cfg->auxil_madvise(
+            arena_cfg->extra,
+            ((void*)span->addr),
+            span->nbytes,
+            TSALLOC_ADVISE_UNRETAIN
+        );
+        if (ret != 0)
+        {
+            bucket_insert(&(bin->buckets[idx]), span);
+            set_tsalloc_error(
+                error_ctx,
+                "bin_get_span::bin.h auxil_madvise failure",
+                TSALLOC_AUXIL_MADVISE_ERR
+            );
+            return TSALLOC_AUXIL_MADVISE_ERR;
+        }
+    }
+
+    bin->nspans--;
     if (bin->buckets[idx].root == nullptr) 
     {
         bin->bitmap    &= ~(1 << idx);
     }
-
-    bin->nspans--;
     if (bin->epoch_min_nspans > bin->nspans)
     {
         bin->epoch_min_nspans   = bin->nspans;
     }
 
-    return span;
+    *dest   = span;
+
+    return TSALLOC_SUCCESS;
 }
 
 /**
@@ -224,7 +249,13 @@ bin_decay(
             break;
         }
         
-        span = bin_get_span(bin);
+        //  cannot fail as loop breaks if only spans left are retained
+        (void)bin_get_span(
+            arena_cfg, 
+            error_ctx, 
+            &span, 
+            bin
+        );
         if (!span)
         {
             break;

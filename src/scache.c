@@ -124,16 +124,31 @@ scache_bin_put(
     );
 }
 
-static inline span_t*
+static inline tsalloc_err_t
 scache_bin_pop(
-    scache_t       *cache,
-    ts_szclass_t    bin_idx
+    const arena_cfg_t  *arena_cfg,
+    tsalloc_errctx_t   *error_ctx,
+    scache_t           *cache,
+    span_t            **dest,
+    ts_szclass_t        bin_idx
 ){
-    bin_t  *bin;
-    span_t *span;
+    bin_t          *bin;
+    span_t         *span;
+    tsalloc_err_t   ret;
 
     bin     = cache->bins + bin_idx;
-    span    = bin_get_span(bin);
+    ret = bin_get_span(
+        arena_cfg, 
+        error_ctx, 
+        &span, 
+        bin
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+
     if (bin_isempty(bin))
     {
         scache_set_bitmap(
@@ -144,7 +159,7 @@ scache_bin_pop(
     }
     //  if a span has made it to a bin, it must already be in pagetrie
     
-    return span;
+    return TSALLOC_SUCCESS;
 }
 
 static inline tsalloc_err_t
@@ -567,7 +582,19 @@ scache_get_span(
     }
     else 
     {
-        span    = scache_bin_pop(cache, bin_idx);
+        ret = scache_bin_pop(
+            arena_cfg,
+            error_ctx,
+            cache,
+            &span,
+            bin_idx
+        );
+        if (ret != TSALLOC_SUCCESS)
+        {
+            mutex_unlock(&(cache->lock));
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
     }
 
     if (isoverfit)

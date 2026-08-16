@@ -34,12 +34,11 @@
     */
     enum TSALLOC_ADVISE_FLAG    : uint8_t
     {
-        /* todo
-            TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
-            TSALLOC_DO_FORK,    ///< flags that memory must be duplicated on `fork` invocations
-        */
+        //  TSALLOC_DONT_FORK,  ///< flags that memory should not be duplicated on `fork` invocations
+        //  TSALLOC_DO_FORK,    ///< flags that memory must be duplicated on `fork` invocations
         
-        TSALLOC_ADVISE_RETAIN   ///< flags unused (unallocated) pages for immediate reclamation by mapper, automatically provides new zerod-out pages on next access
+        TSALLOC_ADVISE_RETAIN,  ///< flags unused physical pages for reclaimation by mapper, maintains virtual address
+        TSALLOC_ADVISE_UNRETAIN ///< remaps physical pages to a virutal address formerly put into retained state via `TSALLOC_ADVISE_RETAIN`
     };
     typedef enum TSALLOC_ADVISE_FLAG    tsalloc_advice_t;
 
