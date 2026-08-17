@@ -51,7 +51,7 @@ tsalloc(
 }
 
 ts_err_t
-talloc_aligned(
+tsalloc_aligned(
     tsalloctr_t    *tsalloctr,
     void          **dest,
     size_t          nbytes,

@@ -61,7 +61,7 @@ int main()
 
     //  by the default configuration set via `TSALLOC_DEFAULT_ARG`, this 64 KiB allocation will be
     //  a slower, bulk allocation made from a global `arena_t` instance. 
-    ret = tsalloc(allocator, &allocated_from_global_arena, (1024ULL * 64ULL));
+    ret = tsalloc_aligned(allocator, &allocated_from_global_arena, (1024ULL * 64ULL), 4096);
     if (ret != TSALLOC_SUCCESS)
     {
         print_error(allocator);
