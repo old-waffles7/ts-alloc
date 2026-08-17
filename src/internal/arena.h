@@ -118,7 +118,7 @@ arena_put_block(
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(glob->error_ctx));
+        append_tsalloc_error_trace(arena->error_ctx);
         return ret;
     }
 
@@ -207,6 +207,64 @@ arena_get_span(
         arena->error_ctx, 
         &(arena->scache), 
         dest, 
+        szclass
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(arena->error_ctx);
+        return ret;
+    }
+
+    size_t  nbytes;
+
+    nbytes  = (*dest)->nbytes;
+    if ((arena->epoch.max - arena->epoch.alloc) <= nbytes)
+    {
+        ret = _arena_decay(arena);
+        if (ret != TSALLOC_SUCCESS)
+        {
+            append_tsalloc_error_trace(arena->error_ctx);
+            return ret;
+        }
+        arena->epoch.alloc  = 0;
+    }
+    else
+    {
+        arena->epoch.alloc += nbytes;
+    }
+
+    return TSALLOC_SUCCESS;
+}
+
+/**
+ * @brief   retrieves a span from the arena's span cache
+ *
+ * @param   arena   pointer to arena supplying the span
+ * @param   dest    pointer to destination of pointer to recieved span
+ * @param   align   requested alignment
+ * @param   szclass size class of the requested span
+ *
+ * @return  status code representing success or failure
+ *
+ * @warning @p align must be strictly greater than pagesize @p arena is configured to
+ */
+static inline tsalloc_err_t
+arena_get_span_aligned(
+    arena_t        *arena,
+    span_t        **dest,
+    size_t          align,
+    ts_szclass_t    szclass
+){
+    tsalloc_err_t   ret;
+
+    ret = scache_get_span_aligned(
+        nullptr, 
+        arena->glob_state, 
+        arena->arena_cfg, 
+        arena->error_ctx, 
+        &(arena->scache), 
+        dest, 
+        align, 
         szclass
     );
     if (ret != TSALLOC_SUCCESS)

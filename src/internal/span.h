@@ -141,6 +141,34 @@ span_split(
 );
 
 /**
+ * @brief   splits a span into a smaller span and a remainder
+ *
+ * @param   glob_state      pointer to the global allocator state
+ * @param   error_ctx       pointer to the error context struct
+ * @param   spanpool        pointer to the object pool for span metadata
+ * @param   origin          pointer to the original span to split
+ * @param   dest_lcut       pointer to destination of address of left-sided remainder of origin
+ * @param   dest_rcut       pointer to destination of address of right-sided remainder of origin
+ * @param   dest_align      pointer to destination of address of the newly split aligned span
+ * @param   split_align     alignment for split span
+ * @param   split_szclass   target size class for the new split span
+ *
+ * @return  status code representing success or failure
+ */
+tsalloc_err_t 
+span_split_aligned(
+    const glob_alloc_state_t   *glob_state,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                     *origin,
+    span_t                    **dest_split,
+    span_t                    **dest_lcut,
+    span_t                    **dest_rcut,
+    size_t                      split_align,
+    ts_szclass_t                split_szclass
+);
+
+/**
  * @brief   coalesces two physically adjacent free spans into a single span
  *
  * @param   glob_state   pointer to the global allocator state

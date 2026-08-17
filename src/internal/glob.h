@@ -82,6 +82,51 @@ glob_put_batch_inarena(
     return TSALLOC_SUCCESS;
 }
 
+//  assume align > pagesize
+static inline tsalloc_err_t
+glob_alloc_spc_aligned_bulk(
+    glob_t *glob,
+    void  **dest,
+    size_t  align,
+    size_t  nbytes
+){
+    ts_szclass_t    szclass;
+
+    //  force nbytes to be a span allocation
+    nbytes  = MAX(glob->glob_state->page_size, nbytes);
+    szclass = tsconfig_get_span_szclass(glob->glob_state, nbytes);
+    if (szclass == (-1))
+    {
+        set_tsalloc_error(
+            &(glob->error_ctx),
+            "glob_alloc::glob.c invalid nbytes argument",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS;
+    }
+
+    span_t         *span;
+    arena_t        *arena;
+    tsalloc_err_t   ret;
+
+    arena   = glob_claim_arena(glob);
+    ret     = arena_get_span_aligned(
+        arena, 
+        &span, 
+        align, 
+        szclass
+    );
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(&(glob->error_ctx));
+        return ret;
+    }
+
+    *dest   = (void*)span->addr;
+
+    return TSALLOC_SUCCESS;
+}
+
 static inline void
 glob_register_tcache
 (

@@ -50,10 +50,6 @@ tsalloc(
     return ret;
 }
 
-
-/*
-TODO: rework free to work for blocks that came from tsalloc_aligned
-
 ts_err_t
 talloc_aligned(
     tsalloctr_t    *tsalloctr,
@@ -70,25 +66,26 @@ talloc_aligned(
         );
         return TSALLOC_INVALID_ARGS;
     }
-    if (align > tsalloctr->arena_cfg.def_alloc_align)
+    
+    ts_err_t    ret;
+
+    if (align <= tsalloctr->glob_state->page_size)
     {
         nbytes  = ALIGN_UP(nbytes, align);
+        ret     = glob_alloc(tsalloctr, dest, nbytes);
     }
-
-    byte_t     *_dest;
-    ts_err_t    ret;
-    
-    ret = glob_alloc(tsalloctr, ((void**)&_dest), nbytes);
+    else
+    {
+        ret = glob_alloc_spc_aligned_bulk(tsalloctr, dest, align, nbytes);
+    }
     if (ret != TSALLOC_SUCCESS)
     {
         append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        return ret;
     }
 
-    *dest   = ((void*)(_dest + align));
-
-    return ret;
+    return TSALLOC_SUCCESS;
 }
-*/
 
 ts_err_t
 tsfree(

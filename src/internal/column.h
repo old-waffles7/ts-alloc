@@ -15,12 +15,8 @@
 
 #include    "../config/tsalloc_config.h"
 
-#include    "slab.h"
-#include    "span.h"
 #include    "glob.h"
 #include    "arena.h"
-#include    "pagetrie.h"
-#include    "arenaconfig.h"
 
 
 /**

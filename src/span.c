@@ -175,7 +175,7 @@ span_split(
             uint64_t state     : 2;
             uint64_t is_slab   : 1;
             uint64_t is_alloc  : 1;
-            uint64_t reserved  : 4;
+            uint64_t reserved  : 4; 
         } flags;
     } split_flags;
 
@@ -191,6 +191,145 @@ span_split(
     (*origin)->flags.szclass    = tsconfig_get_span_szclass(glob_state, origin_nbytes);
     
     *dest   = split;
+
+    return TSALLOC_SUCCESS;
+}
+
+//  assume split_align >= pagesize and pow of 2 (minimum span size)
+tsalloc_err_t 
+span_split_aligned(
+    const glob_alloc_state_t   *glob_state,
+    tsalloc_errctx_t           *error_ctx,
+    objpool_t                  *spanpool,
+    span_t                     *origin,
+    span_t                    **dest_split,
+    span_t                    **dest_lcut,
+    span_t                    **dest_rcut,
+    size_t                      split_align,
+    ts_szclass_t                split_szclass
+){
+    size_t  split_nbytes;
+
+    split_nbytes    = tsconfig_get_nbytes_szclass(
+        glob_state, 
+        split_szclass, 
+        false
+    );
+
+    if ((origin->nbytes) < (split_nbytes + split_align))
+    {
+        set_tsalloc_error(
+            error_ctx,
+            "span_split_aligned::span.c origin span too small to split",
+            TSALLOC_INVALID_ARGS
+        );
+        return TSALLOC_INVALID_ARGS; 
+    }
+
+    byte_t     *lcut_addr;
+    byte_t     *rcut_addr;
+    byte_t     *split_addr;
+    size_t      lcut_nbytes;
+    size_t      rcut_nbytes;
+    uintptr_t   split_addr_offset;
+
+    split_addr_offset   = ALIGN_UP(origin->addr, split_align)
+                          - ((uintptr_t)(origin->addr));
+    if (split_addr_offset == 0)
+    {
+        //  origin addr already aligned so lcut does not exist
+        lcut_addr   = nullptr;
+        rcut_addr   = origin->addr + split_nbytes;
+        split_addr  = origin->addr;
+        rcut_nbytes = origin->nbytes - split_nbytes;
+    }
+    else
+    {
+        //  offset is positive so lcut exists
+        lcut_addr   = origin->addr;
+        //  (offset + split_nbytes) less than origin nbytes so rcut exists
+        rcut_addr   = origin->addr + split_addr_offset + split_nbytes;
+        split_addr  = origin->addr + split_addr_offset;
+        lcut_nbytes = split_addr_offset;
+        rcut_nbytes = origin->nbytes - split_addr_offset - split_nbytes;
+    }
+
+    span_t         *split;
+    span_t         *lcut;
+    span_t         *rcut;
+    tsalloc_err_t   ret;
+    
+    union 
+    {
+        uint64_t    raw;
+        struct 
+        { 
+            uint64_t age       : 28;
+            uint64_t szclass   : 16;
+            uint64_t arena_uid : 12;
+            uint64_t state     : 2;
+            uint64_t is_slab   : 1;
+            uint64_t is_alloc  : 1;
+            uint64_t reserved  : 4;
+        } flags;
+    } split_flags, flags;
+
+    //  cache split spant descriptor flags
+    split_flags.raw             = origin->flags.raw;
+    split_flags.flags.szclass   = split_szclass;
+
+    //  allocate and populate new span descriptor for rcut
+    ret = objpool_alloc(error_ctx, spanpool, ((void*)&rcut));
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(error_ctx);
+        return ret;
+    }
+    flags.raw           = origin->flags.raw;
+    flags.flags.szclass = tsconfig_get_span_szclass(glob_state, rcut_nbytes);
+    *rcut               = (span_t){
+        .flags.raw  = flags.raw,
+        .addr       = rcut_addr,
+        .nbytes     = rcut_nbytes
+    };
+
+    if (lcut_addr != nullptr)
+    {
+        //  allocate new span descriptor for split
+        ret = objpool_alloc(error_ctx, spanpool, ((void*)&split));
+        if (ret != TSALLOC_SUCCESS)
+        {
+            objpool_free(spanpool, ((void*)rcut));
+            append_tsalloc_error_trace(error_ctx);
+            return ret;
+        }
+
+        //  recycle origin span descriptor for lcut and populate fields
+        lcut                = origin;
+        flags.raw           = origin->flags.raw;
+        flags.flags.szclass = tsconfig_get_span_szclass(glob_state, lcut_nbytes);
+        *lcut   = (span_t){
+            .flags.raw  = flags.raw,
+            .addr       = lcut_addr,
+            .nbytes     = lcut_nbytes
+        };
+    }
+    else 
+    {
+        //  recycle origin span descriptor for split
+        lcut    = nullptr;
+        split   = origin;
+    }
+    
+    *split  = (span_t){
+        .flags.raw  = split_flags.raw,
+        .addr       = split_addr,
+        .nbytes     = split_nbytes
+    };
+
+    *dest_lcut  = lcut;
+    *dest_rcut  = rcut;
+    *dest_split = split;
 
     return TSALLOC_SUCCESS;
 }

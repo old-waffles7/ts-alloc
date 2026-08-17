@@ -189,6 +189,36 @@ scache_get_span(
     ts_szclass_t                szclass
 );
 
+
+/*
+ * @brief   retrieves a specially aligned span suitable for a requested size class
+ *
+ * @param   slab_init_info  optional slab initialization information; when
+ *                          non-null, the returned span is initialized as a slab
+ * @param   glob_state      pointer to the global allocation state
+ * @param   arena_cfg       pointer to the arena configuration
+ * @param   error_ctx       pointer to the error context used to report failure
+ * @param   cache           pointer to the target span cache
+ * @param   dest            pointer receiving the retrieved span
+ * @param   align           requested alignment
+ * @param   szclass         requested span size class
+ *
+ * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+ *
+ * @warning @p align must be strictly greater than pagesize configured by @p glob_state
+ */
+tsalloc_err_t
+scache_get_span_aligned(
+    const tsalloc_slab_info_t  *slab_init_info,
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    scache_t                   *cache,
+    span_t                    **dest,
+    size_t                      align,
+    ts_szclass_t                szclass
+);
+
 /*
  * @brief   decays cached spans across all size-class bins
  *

@@ -20,7 +20,6 @@
 #include    "arena.h"
 #include    "column.h"
 #include    "ledger.h"
-#include    "arenaconfig.h"
 
 
 /**
@@ -93,7 +92,7 @@ _tcache_flush(
         ret = col_flush(cache->macro, cache->columns + i);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(&(glob->error_ctx));
+            append_tsalloc_error_trace(&(cache->macro->error_ctx));
             return ret;
         }
     }
@@ -212,7 +211,7 @@ tcache_destroy(
     ret = _tcache_flush(cache);
     if (((tsalloc_err_t)ret) != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(cache->macro->error_ctx);
+        append_tsalloc_error_trace(&(cache->macro->error_ctx));
         return ret;
     }
 

@@ -72,10 +72,6 @@ glob_ctx_not_valid(
     {
         return true;
     }
-    if (!IS_POWER_OF_TWO(arena_cfg->def_alloc_align))
-    {
-        return true;
-    }
     if (arena_cfg->default_new_span_szclass > glob_state->nszclasses_span)
     {
         return true;
@@ -253,7 +249,6 @@ glob_create(
             .auxil_unmap                = &def_auxil_unmap,
             .auxil_madvise              = &def_auxil_madvise,
             .pagesize                   = glob_state->page_size,
-            .def_alloc_align            = 16,
             .default_new_span_szclass   = req.szclass,
             .lcpu_arena_count           = 4,
             .unmap_on_termination       = false,

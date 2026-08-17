@@ -19,7 +19,6 @@
 #include    "os.h"
 
 #include    <sys/mman.h>
-#include    <errno.h>
 
 
 #ifndef     TSALLOC_ARENACONFIG_DEFINED
@@ -116,7 +115,6 @@
         void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
             
         size_t          pagesize;                   ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-        size_t          def_alloc_align;
         ts_szclass_t    default_new_span_szclass;
         uint16_t        lcpu_arena_count;
 

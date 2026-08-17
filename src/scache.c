@@ -195,12 +195,18 @@ scache_mint_span(
     if (arena_cfg->default_new_span_szclass > req_szclass)
     {
         szclass     = arena_cfg->default_new_span_szclass;
-        *isoverfit  = true;
+        if (isoverfit != nullptr)
+        {
+            *isoverfit  = true;
+        }
     }
     else 
     {
         szclass = req_szclass;
-        *isoverfit  = false;
+        if (isoverfit != nullptr)
+        {
+            *isoverfit  = false;
+        }
     }
 
     ret = span_create(
@@ -624,85 +630,214 @@ scache_get_span(
 
     mutex_lock(&(cache->lock));
 
-    isoverfit   = scache_find_nonempty_bin(cache, &bin_idx, szclass);
-    if (bin_idx < 0)
-    {
-        ret = scache_mint_span(
-            glob_state, 
-            arena_cfg, 
-            error_ctx, 
-            cache, 
-            &span, 
-            &isoverfit, 
-            szclass
-        );
-        if (ret != TSALLOC_SUCCESS)
+        isoverfit   = scache_find_nonempty_bin(cache, &bin_idx, szclass);
+        if (bin_idx < 0)
         {
-            mutex_unlock(&(cache->lock));
-            append_tsalloc_error_trace(error_ctx);
-            return ret;
+            ret = scache_mint_span(
+                glob_state, 
+                arena_cfg, 
+                error_ctx, 
+                cache, 
+                &span, 
+                &isoverfit, 
+                szclass
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
         }
-    }
-    else 
+        else 
+        {
+            ret = scache_bin_pop(
+                arena_cfg,
+                error_ctx,
+                cache,
+                &span,
+                bin_idx
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+        }
+
+        if (isoverfit)
+        {
+            span_t *cut;
+
+            ret = scache_cutout_span(
+                glob_state, 
+                arena_cfg, 
+                error_ctx, 
+                cache, 
+                span, 
+                &cut, 
+                szclass
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                //  only possible failure is that spanpool is out of memory; span, pagetrie are unmutated
+                scache_bin_put(arena_cfg, cache, span);
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+
+            span    = cut;
+        }
+
+        if (slab_init_info)
+        {
+            ret = slab_init(
+                slab_init_info, 
+                error_ctx, 
+                &(cache->slabpool), 
+                span
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                //  only possible failure is that slabpool is out of memory; span, pagetrie are unmutated
+                scache_bin_put(arena_cfg, cache, span);
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+        }
+        span->flags.is_alloc    = true;
+
+    mutex_unlock(&(cache->lock));
+
+    *dest   = span;
+
+    return TSALLOC_SUCCESS;
+}
+
+//  align must be > pgsize 
+tsalloc_err_t
+scache_get_span_aligned(
+    const tsalloc_slab_info_t  *slab_init_info,
+    const glob_alloc_state_t   *glob_state,
+    const arena_cfg_t          *arena_cfg,
+    tsalloc_errctx_t           *error_ctx,
+    scache_t                   *cache,
+    span_t                    **dest,
+    size_t                      align,
+    ts_szclass_t                szclass
+){
+    size_t          req_nbytes;
+    ts_szclass_t    req_szclass;
+
+    req_nbytes  = align + tsconfig_get_nbytes_szclass(glob_state, szclass, false);
+    req_szclass = tsconfig_get_szclass(glob_state, req_nbytes).szclass;
+    if ((req_szclass < 0) || (req_szclass >= cache->nszclasses))
     {
-        ret = scache_bin_pop(
-            arena_cfg,
+        set_tsalloc_error(
             error_ctx,
-            cache,
-            &span,
-            bin_idx
+            "scache_get_span::scache.c invalid size-class",
+            TSALLOC_INVALID_ARGS
         );
-        if (ret != TSALLOC_SUCCESS)
-        {
-            mutex_unlock(&(cache->lock));
-            append_tsalloc_error_trace(error_ctx);
-            return ret;
-        }
+        return TSALLOC_INVALID_ARGS;
     }
 
-    if (isoverfit)
-    {
-        span_t *cut;
+    span_t         *origin;
+    ts_szclass_t    bin_idx;
+    tsalloc_err_t   ret;
 
-        ret = scache_cutout_span(
+    mutex_lock(&(cache->lock));
+
+        //  ignore overfit flag as split will be performed regardlesss
+        (void)scache_find_nonempty_bin(cache, &bin_idx, req_szclass);
+        if (bin_idx < 0)
+        {
+            ret = scache_mint_span(
+                glob_state, 
+                arena_cfg, 
+                error_ctx, 
+                cache, 
+                &origin, 
+                nullptr, 
+                req_szclass
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+        }
+        else 
+        {
+            ret = scache_bin_pop(
+                arena_cfg,
+                error_ctx,
+                cache,
+                &origin,
+                bin_idx
+            );
+            if (ret != TSALLOC_SUCCESS)
+            {
+                mutex_unlock(&(cache->lock));
+                append_tsalloc_error_trace(error_ctx);
+                return ret;
+            }
+        }
+
+        span_t *lcut;
+        span_t *rcut;
+        span_t *span;
+
+        ret = span_split_aligned(
             glob_state, 
-            arena_cfg, 
             error_ctx, 
-            cache, 
-            span, 
-            &cut, 
+            &(cache->spanpool), 
+            origin, 
+            &span, 
+            &lcut, 
+            &rcut, 
+            align, 
             szclass
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            //  only possible failure is that spanpool is out of memory; span, pagetrie are unmutated
-            scache_bin_put(arena_cfg, cache, span);
             mutex_unlock(&(cache->lock));
             append_tsalloc_error_trace(error_ctx);
             return ret;
         }
 
-        span    = cut;
-    }
-
-    if (slab_init_info)
-    {
-        ret = slab_init(
-            slab_init_info, 
-            error_ctx, 
-            &(cache->slabpool), 
-            span
+        //  cannot fail as paths in pagetrie already exist, objpool will not need to alloc
+        (void)pagetrie_insert(
+            nullptr, 
+            cache->pagetrie, 
+            ((void*)span->addr), 
+            span, 
+            span->nbytes
         );
-        if (ret != TSALLOC_SUCCESS)
+        (void)pagetrie_insert(
+            nullptr, 
+            cache->pagetrie, 
+            ((void*)rcut->addr), 
+            rcut, 
+            rcut->nbytes
+        );
+        scache_bin_put(arena_cfg, cache, rcut);
+        if (lcut)
         {
-            //  only possible failure is that slabpool is out of memory; span, pagetrie are unmutated
-            scache_bin_put(arena_cfg, cache, span);
-            mutex_unlock(&(cache->lock));
-            append_tsalloc_error_trace(error_ctx);
-            return ret;
+            (void)pagetrie_insert(
+                nullptr, 
+                cache->pagetrie, 
+                ((void*)lcut->addr), 
+                lcut, 
+                lcut->nbytes
+            );
+            scache_bin_put(arena_cfg, cache, lcut);
         }
-    }
-    span->flags.is_alloc    = true;
+
+        span->flags.is_alloc    = true;
 
     mutex_unlock(&(cache->lock));
 

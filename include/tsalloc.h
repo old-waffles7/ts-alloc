@@ -132,7 +132,6 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
         void   *extra;  ///< pointer to state for use by user in auxiliary mapping, unmapping functions
             
         size_t          pagesize;                   ///< default alignment of auxilliary allocator; e.g `def_auxil_map` invokes `mmap`, aligns to page-size
-        size_t          def_alloc_align;            ///< deafult allignment for allocations
         ts_szclass_t    default_new_span_szclass;
         uint16_t        lcpu_arena_count;
 
@@ -168,6 +167,14 @@ tsalloc(
     tsalloctr_t    *tsalloctr,
     void          **dest,
     size_t          nbytes
+);
+
+ts_err_t
+talloc_aligned(
+    tsalloctr_t    *tsalloctr,
+    void          **dest,
+    size_t          nbytes,
+    size_t          align
 );
 
 ts_err_t
