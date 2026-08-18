@@ -9,6 +9,9 @@
     specifying if it has been written to already. add a function to get error state of 
     a given thread and once it does, clears that associated context. also function to get
     how many contexts are left and have context store pthread_t id.
+*   remove default_span_size field for glob_alloc_state_t in config
+*   replace tsalloc(), tsfee() with macros that call _tsalloc, _tsfree to avoid casting
+    errors
 
 ## would add later
 *   functionality to disable/re-enable tcache

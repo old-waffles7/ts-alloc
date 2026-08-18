@@ -4,7 +4,9 @@
 #define TSALLOC_H
 
 
-#include    "../src/internal/common.h"
+#include    <stdbool.h>
+#include    <stddef.h>
+#include    <stdint.h>
 
 
 #ifndef     TSALLOC_DEFAULT_ARG
@@ -181,6 +183,12 @@ ts_err_t
 tsfree(
     tsalloctr_t    *tsalloctr,
     void           *addr
+);
+
+ts_szclass_t
+tsszclass_of_nbytes(
+    size_t  pagesize,
+    size_t  nbytes
 );
 
 void 

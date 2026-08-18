@@ -466,7 +466,7 @@ tsconfig_get_cfg(
 		case 2097152:
 			return &config_2097152;
 		default:
-			return NULL;
+			return nullptr;
 	}
 }
 

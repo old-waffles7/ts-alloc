@@ -53,17 +53,13 @@ static inline size_t
 scache_auxil_mem_size(
     const glob_alloc_state_t   *global_config
 ){
-    static size_t   nbytes;
-    size_t          nszclasses;
+    size_t  nbytes;
+    size_t  nszclasses;
 
-    if (nbytes)
-    {
-        return nbytes;
-    }
+    nszclasses = global_config->nszclasses_span;
 
-    nszclasses  = (global_config->nszclasses_span);
-    nbytes      = sizeof(bin_t) * nszclasses;
-    nbytes     += 8 + ((nszclasses + 63) / 64) * 8;
+    nbytes  = sizeof(bin_t) * nszclasses;
+    nbytes += 8 + ((nszclasses + 63) / 64) * 8;
 
     return nbytes;
 }

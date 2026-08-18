@@ -1,4 +1,12 @@
 
+/**
+ *  hello, this is a quick-start guide to using libtsalloc! in this document we will initialize
+ *  a simple allocator backed by RAM pages.
+ *
+ *  please remember to go through the README and configure libtsalloc prior to compiling the library
+ *  by using the configuration script: tsalloc/src/config/config.py 
+*/
+
 #include    "../include/tsalloc.h"
 
 #include    <stdio.h>
@@ -23,6 +31,7 @@ print_error(
         state.trace
     );
 }
+
 
 int main()
 {
@@ -61,7 +70,7 @@ int main()
 
     //  by the default configuration set via `TSALLOC_DEFAULT_ARG`, this 64 KiB allocation will be
     //  a slower, bulk allocation made from a global `arena_t` instance. 
-    ret = tsalloc_aligned(allocator, &allocated_from_global_arena, (1024ULL * 64ULL), 4096);
+    ret = tsalloc(allocator, &allocated_from_global_arena, (1024ULL * 64ULL));
     if (ret != TSALLOC_SUCCESS)
     {
         print_error(allocator);

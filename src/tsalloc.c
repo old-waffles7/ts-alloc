@@ -109,6 +109,22 @@ tsfree(
     return ret;
 }
 
+ts_szclass_t
+tsszclass_of_nbytes(
+    size_t  pagesize,
+    size_t  nbytes
+){
+    const glob_alloc_state_t   *glob_state;
+
+    glob_state  = tsconfig_get_cfg(pagesize);
+    if (glob_state == nullptr)
+    {
+        return (ts_szclass_t)(-1);
+    }
+
+    return tsconfig_get_span_szclass(glob_state, nbytes);
+}
+
 void 
 ts_turnon_tcache(
     tsalloctr_t    *tsalloctr

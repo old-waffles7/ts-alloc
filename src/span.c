@@ -393,7 +393,7 @@ span_set_state(
     switch (state) 
     {
         case TSALLOC_SPAN_CLEAN:
-            memset((span->addr), 0, nbytes);
+            // memset((span->addr), 0, nbytes);
             span->flags.state   = TSALLOC_SPAN_CLEAN;
             break;
 

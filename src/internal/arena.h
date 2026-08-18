@@ -81,16 +81,8 @@ static inline size_t
 arena_auxil_mem_size(
     const glob_alloc_state_t   *glob_state
 ){
-    static size_t   nbytes;
-
-    if (nbytes)
-    {
-        return nbytes;
-    }
-
-    nbytes  = scache_auxil_mem_size(glob_state) + bcache_auxil_mem_size(glob_state);
-
-    return nbytes;
+    return scache_auxil_mem_size(glob_state)
+         + bcache_auxil_mem_size(glob_state);
 }
 
 /**

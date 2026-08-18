@@ -52,22 +52,18 @@ typedef struct thread_local_bcache  tcache_t;
  */
 static inline size_t
 _tcache_mem_size(
-    const glob_alloc_state_t   *glob_state
+    const glob_alloc_state_t *glob_state
 ){
-    static size_t   nbytes;
+    size_t nbytes;
+    ts_szclass_t nszclasses;
 
-    if (nbytes)
-    {
-        return nbytes;
-    }
+    nbytes      = sizeof(tcache_t);
+    nszclasses  = glob_state->nszclasses_slab;
 
-    ts_szclass_t    nszclasses;
-
-    nbytes     += sizeof(tcache_t);
-    nszclasses  = glob_state->nszclasses_span;
     for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
-        nbytes += col_auxil_mem_size(glob_state->tcache_info[i]) + sizeof(col_t);
+        nbytes += col_auxil_mem_size(glob_state->tcache_info[i])
+                + sizeof(col_t);
     }
 
     return nbytes;
