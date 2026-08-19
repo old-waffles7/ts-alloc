@@ -5,5 +5,5 @@ build/*
 .cache/*
 examples/*
 !examples/quickstart.c
-!examples/advanced.c
+!examples/advanced.cu
 !examples/multithreading.c
