@@ -174,6 +174,8 @@ scache_bin_pop(
         );
     }
     //  if a span has made it to a bin, it must already be in pagetrie
+
+    *dest   = span;
     
     return TSALLOC_SUCCESS;
 }
@@ -572,14 +574,13 @@ scache_put_span(
 ){
     span_t     *_span;
     ts_err_t    ret;
-    
-    if (span->flags.is_slab)
-    {
-        slab_deinit(&(cache->slabpool), span);
-    }
 
     mutex_lock(&(cache->lock));
 
+        if (span->flags.is_slab)
+        {
+            slab_deinit(&(cache->slabpool), span);
+        }
         span->flags.is_alloc    = false;
         ret = scache_merge_adj(
             glob_state, 

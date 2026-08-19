@@ -136,9 +136,9 @@
         uint16_t        lcpu_arena_count;
 
         bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
-        bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
+        bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (treated as a single mapping). e.g. 2 contiguous mappings from POSIX `mmap` can be treated as a single mapping an unmaped with a single `unmap` invocation
     };
-    typedef struct tsalloc_arena_config tsarena_cfg_t;
+    typedef struct tsalloc_arena_config ts_arena_cfg_t;
 
 #endif      //TSALLOC_ARENACONFIG_DEFINED
 
@@ -153,7 +153,7 @@ typedef struct tsalloc_global_arena tsalloctr_t;
 //  passing TSALLOC_DEFAULT_ARG as parameter for @p arena_cfg configures conventional memory allocator ram.
 ts_err_t
 tsalloc_create(
-    const tsarena_cfg_t    *arena_cfg,
+    const ts_arena_cfg_t  *arena_cfg,
     tsalloctr_t           **dest
 );
 
@@ -194,7 +194,7 @@ ts_turnon_tcache(
     tsalloctr_t    *tsalloctr
 );
 
-void 
+ts_err_t 
 ts_turnoff_tcache(
     tsalloctr_t    *tsalloctr
 );

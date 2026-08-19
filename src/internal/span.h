@@ -44,6 +44,12 @@ typedef enum TSALLOC_SPAN_STATE tsalloc_span_state_t;
  */
 struct span
 {
+    union
+    {
+        bucket_coord_t      bucket;     ///< coordinates for bucket placement
+        registry_coord_t    registry;   ///< coordinates for registry placement
+    } coord;
+    
     union 
     {
         uint64_t    raw;
@@ -58,12 +64,6 @@ struct span
             uint64_t    reserved    : 4;
         };
     } flags;
-
-    union
-    {
-        bucket_coord_t      bucket;     ///< coordinates for bucket placement
-        registry_coord_t    registry;   ///< coordinates for registry placement
-    } coord;
 
     record_t   *record;
     byte_t     *addr;

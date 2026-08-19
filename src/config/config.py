@@ -439,7 +439,8 @@ def main():
     )
     
     args        = parser.parse_args()
-    file_path   = "src/config/_tsalloc_config.h"
+    script_path = os.path.dirname(os.path.abspath(__file__))
+    file_path   = os.path.join(script_path, "_tsalloc_config.h")
 
     if args.clear:
         with open(file_path, "w") as f:

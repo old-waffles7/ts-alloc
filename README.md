@@ -7,7 +7,7 @@
 *   **Lock-Free Thread Caching:** Rapid allocations bypass global locks completely.
 *   **Pagetrie Tracking:** Allocation metadata is not placed directly before a requested memory block. Instead, a thread-safe, 3-level radix tree provides O(1) metadata lookups for virtual pages.
 *   **Adaptive Mutexes:** Custom POSIX-semaphore backed mutexes with adaptive spinning.
-*   **Pluggable Backend:** Inject custom `mmap`, `munmap`, and `madvise` implementations via `tsarena_cfg_t`. For example, a `tsalloctr_t` instance may be configured to be a thread-safe VRAM memory allocator.
+*   **Pluggable Backend:** Inject custom `mmap`, `munmap`, and `madvise` implementations via `ts_arena_cfg_t`. For example, a `tsalloctr_t` instance may be configured to be a thread-safe VRAM memory allocator.
 *   **Dynamic Configuration:** Python-based configuration script to add support for additional pagesizes.
 
 ## Requirements

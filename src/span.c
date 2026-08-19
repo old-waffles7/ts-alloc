@@ -369,7 +369,7 @@ span_coalesce(
     ts_szclass_t    szclass; 
 
     nbytes  = (lspan->nbytes) + (rspan->nbytes);
-    szclass = tsconfig_get_szclass(glob_state, nbytes).szclass;
+    szclass = tsconfig_get_span_szclass(glob_state, nbytes);
 
     lspan->flags.age        = MIN((lspan->flags.age), (rspan->flags.age));
     lspan->flags.szclass    = szclass;

@@ -129,7 +129,7 @@ col_init(
     *col        = (col_t){
         .blocks             = (byte_t**)auxil_mem,
         .capacity           = capacity,
-        .epoch_min_nblocks  = capacity,
+        .epoch_min_nblocks  = 0,
         .szclass            = szclass
     };
 

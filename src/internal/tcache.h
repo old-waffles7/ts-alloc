@@ -181,10 +181,7 @@ tcache_create(
         auxil_mems_addr += col_auxil_mem_size(glob->glob_state->tcache_info[i]);
     }
 
-    #include <stdio.h>
-    printf("ledger head addr: %lx\n", (uintptr_t)glob->ledger.head);
     glob_register_tcache(glob, cache);
-    printf("ledger head addr: %lx\n", (uintptr_t)glob->ledger.head);
     *dest   = cache;
 
     return TSALLOC_SUCCESS;

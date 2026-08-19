@@ -33,16 +33,16 @@ _ts_req_errstate(
     ts_errstate_t  *state,
     int32_t         glob_uid
 ){
-    ts_errctx_t err_ctx;
+    ts_errctx_t    *err_ctx;
 
-    err_ctx = _err_ctxs[glob_uid];
+    err_ctx = _err_ctxs + glob_uid;
     #ifdef  OPT_TRACE_ERRORS
     {
         *state  = (ts_errstate_t){
-            .trace          = err_ctx.trace,
-            .message        = err_ctx.message,
-            .os_error_code  = err_ctx.os_error_code,
-            .ts_error_code  = err_ctx.ts_error_code
+            .trace          = err_ctx->trace,
+            .message        = err_ctx->message,
+            .os_error_code  = err_ctx->os_error_code,
+            .ts_error_code  = err_ctx->ts_error_code
         };
     }
     #else 

@@ -33,7 +33,7 @@ print_error(
 }
 
 
-int main()
+int main(void)
 {
     tsalloctr_t    *allocator;
     ts_err_t        ret;

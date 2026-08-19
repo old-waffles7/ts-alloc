@@ -6,3 +6,8 @@ recompile_lib.sh
 advanced
 quickstart
 lobtsalloc.so
+.cache/*
+examples/*
+!examples/quickstart.c
+!examples/advanced.c
+!examples/multithreading.c

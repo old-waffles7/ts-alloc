@@ -124,7 +124,7 @@
 
 #endif      //TSALLOC_ARENACONFIG_DEFINED
 
-typedef struct tsalloc_arena_config tsarena_cfg_t;
+typedef struct tsalloc_arena_config ts_arena_cfg_t;
 typedef struct tsalloc_arena_config arena_cfg_t;
 
 

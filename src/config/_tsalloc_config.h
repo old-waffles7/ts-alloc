@@ -104,7 +104,7 @@ static const tsalloc_cfg_t	config_4096	= {
 	.page_size                  = 4096,
 	.min_align                  = 16,
 	.slab_alloc_max             = 16384,
-	.epoch_max                  = 65536,
+	.epoch_max                  = 32768,
 	.default_span_size          = 2097152,
 	.steps_per_pow2             = 4,
 	.min_align_shift            = 4,
@@ -184,7 +184,7 @@ static const tsalloc_cfg_t	config_16384	= {
 	.page_size                  = 16384,
 	.min_align                  = 16,
 	.slab_alloc_max             = 16384,
-	.epoch_max                  = 65536,
+	.epoch_max                  = 32768,
 	.default_span_size          = 2097152,
 	.steps_per_pow2             = 4,
 	.min_align_shift            = 4,
@@ -264,7 +264,7 @@ static const tsalloc_cfg_t	config_32768	= {
 	.page_size                  = 32768,
 	.min_align                  = 16,
 	.slab_alloc_max             = 16384,
-	.epoch_max                  = 65536,
+	.epoch_max                  = 32768,
 	.default_span_size          = 2097152,
 	.steps_per_pow2             = 4,
 	.min_align_shift            = 4,
@@ -344,7 +344,7 @@ static const tsalloc_cfg_t	config_65536	= {
 	.page_size                  = 65536,
 	.min_align                  = 16,
 	.slab_alloc_max             = 16384,
-	.epoch_max                  = 65536,
+	.epoch_max                  = 32768,
 	.default_span_size          = 2097152,
 	.steps_per_pow2             = 4,
 	.min_align_shift            = 4,
@@ -428,7 +428,7 @@ static const tsalloc_cfg_t	config_2097152	= {
 	.page_size                  = 2097152,
 	.min_align                  = 256,
 	.slab_alloc_max             = 524288,
-	.epoch_max                  = 33554432,
+	.epoch_max                  = 16777216,
 	.default_span_size          = 33554432,
 	.steps_per_pow2             = 4,
 	.min_align_shift            = 8,
@@ -466,7 +466,7 @@ tsconfig_get_cfg(
 		case 2097152:
 			return &config_2097152;
 		default:
-			return nullptr;
+			return NULL;
 	}
 }
 

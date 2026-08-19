@@ -10,7 +10,7 @@
 
 ts_err_t
 tsalloc_create(
-    const tsarena_cfg_t    *arena_cfg,
+    const ts_arena_cfg_t   *arena_cfg,
     tsalloctr_t           **dest
 ){
     return glob_create(arena_cfg, dest);
@@ -132,11 +132,20 @@ ts_turnon_tcache(
     glob_turnon_tcache(tsalloctr);
 }
 
-void 
+ts_err_t 
 ts_turnoff_tcache(
     tsalloctr_t    *tsalloctr
 ){
-    glob_turnoff_tcache(tsalloctr);
+    ts_err_t    ret;
+
+    ret = glob_turnoff_tcache(tsalloctr);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(tsalloctr->glob_uid);
+        return ret;
+    }
+
+    return TSALLOC_SUCCESS;
 }
 
 void 

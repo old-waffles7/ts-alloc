@@ -2,8 +2,8 @@
 /**
  *  welcome to the advanced example in using ltsalloc! in this document we will be exploring using 
  *  multiple allocator instances in addition to implementing an allocator using a custom 
- *  configuration: in this case, a VRAM backed allocator (NVIDIA gpu required for this example).
- *  good luck!
+ *  configuration: in this case, a VRAM backed allocator (NVIDIA gpu and -lcuda compilation flag 
+ *  required for this example). good luck!
  *
  *  please remember to go through the README and configure libtsalloc prior to compiling the library
  *  by using the configuration script: tsalloc/src/config/config.py 
@@ -352,7 +352,7 @@ randint_vec(
 #define     N_BLOCKS            ((uint64_t)(N_ELEMENTS) + (uint64_t)(THREADS_PER_BLOCK) - (uint64_t)(1)) / (THREADS_PER_BLOCK)
 
 
-int main()
+int main(void)
 {
     CUdevice    cu_device;
     size_t      pagesize;
@@ -400,11 +400,11 @@ int main()
     //  all done with that cuda jargon now we can initialize our allocators ^_^
     tsalloctr_t    *allocator_cu;   //  VRAM backed
     tsalloctr_t    *allocator_host; //  RAM backed
-    tsarena_cfg_t   arena_cfg_cu;
+    ts_arena_cfg_t  arena_cfg_cu;
     cudaError_t     err;
 
     //  define arena configuration
-    arena_cfg_cu    = (tsarena_cfg_t){
+    arena_cfg_cu    = (ts_arena_cfg_t){
         .auxil_map                  = cuda_vmm_mmap,
         .auxil_unmap                = cuda_vmm_unmap,
         .auxil_madvise              = cuda_vmm_madvise,
