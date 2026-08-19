@@ -25,13 +25,12 @@ struct tsalloc_global_arena
     const glob_alloc_state_t   *glob_state;
     arena_cfg_t                 arena_cfg;
 
-    tsalloc_errctx_t    error_ctx;
     pagetrie_t          pagetrie;
     ledger_t            ledger;
     mutex_t             ledger_lock;
     _Atomic(uint32_t)   arena_idx;  //  uint16_t upsized to 32 bit-width for costless casting
     uint32_t            narenas;    //  uint16_t upsized to 32 bit-width for costless casting
-    uint16_t            glob_uid;
+    int32_t             glob_uid;
 };
 typedef struct tsalloc_global_arena glob_t;
 
@@ -57,15 +56,15 @@ glob_claim_arena(
 }
 
 //  warning blocks must be valid. i.e they must be cut from spans initialized to slabs
-static inline tsalloc_err_t 
+static inline ts_err_t 
 glob_put_batch_inarena(
     glob_t     *glob,
     byte_t    **batch,
     size_t      nblocks
 ){
-    arena_t        *arena;
-    span_t         *slab;
-    tsalloc_err_t   ret;
+    arena_t    *arena;
+    span_t     *slab;
+    ts_err_t    ret;
 
     for (size_t i = 0; i < nblocks; i++)
     {
@@ -74,7 +73,7 @@ glob_put_batch_inarena(
         ret     = arena_put_block(arena, slab, batch[i]);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(&(glob->error_ctx));
+            append_tsalloc_error_trace(glob->glob_uid);
             return ret;
         }
     }
@@ -83,7 +82,7 @@ glob_put_batch_inarena(
 }
 
 //  assume align > pagesize
-static inline tsalloc_err_t
+static inline ts_err_t
 glob_alloc_spc_aligned_bulk(
     glob_t *glob,
     void  **dest,
@@ -98,16 +97,16 @@ glob_alloc_spc_aligned_bulk(
     if (szclass == (-1))
     {
         set_tsalloc_error(
-            &(glob->error_ctx),
+            glob->glob_uid,
             "glob_alloc::glob.c invalid nbytes argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
     }
 
-    span_t         *span;
-    arena_t        *arena;
-    tsalloc_err_t   ret;
+    span_t     *span;
+    arena_t    *arena;
+    ts_err_t    ret;
 
     arena   = glob_claim_arena(glob);
     ret     = arena_get_span_aligned(
@@ -118,7 +117,7 @@ glob_alloc_spc_aligned_bulk(
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(glob->error_ctx));
+        append_tsalloc_error_trace(glob->glob_uid);
         return ret;
     }
 
@@ -150,40 +149,50 @@ glob_deregister_tcache
 }
 
 
-tsalloc_err_t
+ts_err_t
 glob_create(
     const arena_cfg_t  *arena_cfg,
     glob_t            **dest
 );
 
 //  undefined behavior if called in thread A while thread B is using
-tsalloc_err_t
+ts_err_t
 glob_destroy(
     glob_t *glob
 );
 
-tsalloc_err_t
+ts_err_t
 glob_alloc(
     glob_t *glob,
     void  **dest,
     size_t  nbytes
 );
 
-tsalloc_err_t
+ts_err_t
 glob_free(
     glob_t *glob,
     void   *addr
 );
+
+//  allocator must still be valid otherwise undefined behavior
 
 void 
 glob_turnon_tcache(
     glob_t *glob
 );
 
-tsalloc_err_t 
+//  allocator must still be valid otherwise undefined behavior
+ts_err_t 
 glob_turnoff_tcache(
     glob_t *glob
 );
+
+/*
+size_t
+glob_nfails_tcleanup(
+    glob_t *glob
+);
+*/
 
 
 #endif  //GLOB_H

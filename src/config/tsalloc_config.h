@@ -55,7 +55,7 @@ tsconfig_isslab_alloc(
  *
  * @return  a request struct containing the size class index and allocation type
  */
-static inline tsalloc_szreq_t
+static inline tsalloc_szreq_t 
 tsconfig_get_szclass(
     const tsalloc_cfg_t    *cfg,
     size_t                  nbytes
@@ -71,40 +71,43 @@ tsconfig_get_szclass(
         return req;
     }
 
-    //  slab
     if (tsconfig_isslab_alloc(cfg, nbytes))
     {
         uint64_t    idx;
-
         idx         = (nbytes + cfg->min_align - 1) >> (cfg->min_align_shift);
-        req.szclass = (cfg->szclass_of_nbytes_slab[(idx == 0)? 0 : (idx -1)]);
+        req.szclass = (cfg->szclass_of_nbytes_slab[(idx == 0)? 0 : (idx - 1)]);
         req.isslab  = true;
-
         return req;
     }
 
-    //  span
-    size_t      req_nbytes;
-    size_t      page_shift;
-    size_t      base_shift;
-    size_t      epoch;
-    size_t      epoch_base_nbytes;
-    size_t      offset;
+    size_t  req_nbytes;
+    size_t  page_shift;
+    size_t  grp;
 
-    req_nbytes          = nbytes - 1;
-    page_shift          = (size_t)__builtin_ctzll(cfg->page_size);
-    base_shift          = page_shift + (cfg->steps_per_pow2_shift);
-    epoch               = 63 - __builtin_clzll((req_nbytes >> base_shift) + 1);
-    epoch_base_nbytes   = (1ULL << base_shift) * ((1ULL << epoch) - 1);
-    offset              = (req_nbytes - epoch_base_nbytes) >> (page_shift + epoch);
+    req_nbytes  = nbytes - 1;
+    page_shift  = (size_t)__builtin_ctzll(cfg->page_size);
+    grp         = req_nbytes >> page_shift;
 
-    req.szclass = (epoch << (cfg->steps_per_pow2_shift)) + offset;
+    if (grp < cfg->steps_per_pow2)
+    {
+        req.szclass = grp;
+    }
+    else
+    {
+        size_t b                = 63 - __builtin_clzll(grp);
+        size_t epoch            = b - cfg->steps_per_pow2_shift + 1;
+        size_t epoch_base_pages = 1ULL << (epoch + cfg->steps_per_pow2_shift - 1);
+        size_t step             = 1ULL << (epoch - 1);
+        size_t offset           = (grp - epoch_base_pages) / step;
+        
+        req.szclass = (epoch << cfg->steps_per_pow2_shift) + offset;
+    }
     req.isslab  = false;
     
     return req;
 }
 
-static inline ts_szclass_t
+static inline ts_szclass_t 
 tsconfig_get_span_szclass(
     const glob_alloc_state_t   *glob_state,
     size_t                      nbytes
@@ -116,29 +119,24 @@ tsconfig_get_span_szclass(
 
     size_t  req_nbytes;
     size_t  page_shift;
-    size_t  base_shift;
-    size_t  epoch;
-    size_t  epoch_base_nbytes;
-    size_t  offset;
+    size_t  grp;
 
     req_nbytes  = nbytes - 1;
     page_shift  = (size_t)__builtin_ctzll(glob_state->page_size);
-    base_shift  = page_shift + (glob_state->steps_per_pow2_shift);
-    
-    if ((req_nbytes >> base_shift) == 0)
-    {
-        epoch               = 0;
-        epoch_base_nbytes   = 0;
-    }
-    else
-    {
-        epoch             = 63 - __builtin_clzll((req_nbytes >> base_shift));
-        epoch_base_nbytes = (1ULL << base_shift) * ((1ULL << epoch) - 1);
-    }
-    
-    offset  = (req_nbytes - epoch_base_nbytes) >> (page_shift + epoch);
+    grp         = req_nbytes >> page_shift;
 
-    return (ts_szclass_t)((epoch << (glob_state->steps_per_pow2_shift)) + offset);
+    if (grp < glob_state->steps_per_pow2)
+    {
+        return (ts_szclass_t)grp;
+    }
+
+    size_t b                = 63 - __builtin_clzll(grp);
+    size_t epoch            = b - glob_state->steps_per_pow2_shift + 1;
+    size_t epoch_base_pages = 1ULL << (epoch + glob_state->steps_per_pow2_shift - 1);
+    size_t step             = 1ULL << (epoch - 1);
+    size_t offset           = (grp - epoch_base_pages) / step;
+
+    return (ts_szclass_t)((epoch << glob_state->steps_per_pow2_shift) + offset);
 }
 
 /*

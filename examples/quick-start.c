@@ -16,7 +16,7 @@ static inline void
 print_error(
     tsalloctr_t    *allocator
 ){
-    tsalloc_errstate    state;
+    ts_errstate_t   state;
 
     //  see "tsalloc.h" for all `ts_err_t` values and their corresponding descriptions
     ts_req_errstate(allocator, &state);
@@ -25,7 +25,7 @@ print_error(
         "OS_ERROR_CODE:         %d\n"
         "TSALLOC_MESSAGE:       %s\n"
         "TRACE:                 %s\n",
-        state.tsalloc_error_code,
+        state.ts_error_code,
         state.os_error_code,
         state.message,
         state.trace
@@ -48,7 +48,6 @@ int main()
         return -1;
     }
     printf("allocator created\n");
-
     
     void   *allocated_from_tcache;
     void   *allocated_from_global_arena;

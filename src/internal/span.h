@@ -77,95 +77,95 @@ typedef struct span span_t;
  *
  * @param   glob_state   pointer to the global allocator state
  * @param   arena_cfg    pointer to the arena configuration struct
- * @param   error_ctx    pointer to the error context struct
- * @param   spanpool    pointer to the object pool for span metadata
- * @param   dest        double pointer to output the newly created span
+ * @param   spanpool     pointer to the object pool for span metadata
+ * @param   dest         double pointer to output the newly created span
  * @param   szclass     size class of the span being created
  * @param   epoch       pointer to the epoch used as the age of the newly minted span
  * @param   arena_uid   unique identifier of the arena owning the span
  * @param   _align      memory alignment requirement
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 span_create(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t            *error_ctx,
     objpool_t                  *spanpool,
     span_t                    **dest,
     ts_szclass_t                szclass,
     uint32_t                   *epoch,
     uint16_t                    arena_uid,
-    size_t                      _align
+    size_t                      _align,
+    int32_t                     glob_uid
 );
 
 /**
  * @brief   destroys a memory span and unmaps its backing memory
  *
  * @param   arena_cfg    pointer to the arena configuration struct
- * @param   error_ctx   pointer to the error context struct
- * @param   spanpool    pointer to the object pool for span metadata
- * @param   span        pointer to the span to destroy
+ * @param   spanpool     pointer to the object pool for span metadata
+ * @param   span         pointer to the span to destroy
+ * @param   glob_uid     global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 span_destroy(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     objpool_t          *spanpool,
-    span_t             *span
+    span_t             *span,
+    int32_t             glob_uid
 );
 
 /**
  * @brief   splits a span into a smaller span and a remainder
  *
  * @param   glob_state   pointer to the global allocator state
- * @param   error_ctx   pointer to the error context struct
- * @param   spanpool    pointer to the object pool for span metadata
+ * @param   spanpool     pointer to the object pool for span metadata
  * @param   origin      double pointer to the original span to split (updated to remainder)
  * @param   dest        double pointer to output the newly split span
  * @param   szclass     target size class for the new split span
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 span_split(
     const glob_alloc_state_t   *glob_state,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     span_t                    **origin,
     span_t                    **dest,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 );
 
 /**
  * @brief   splits a span into a smaller span and a remainder
  *
  * @param   glob_state      pointer to the global allocator state
- * @param   error_ctx       pointer to the error context struct
  * @param   spanpool        pointer to the object pool for span metadata
  * @param   origin          pointer to the original span to split
+ * @param   dest_split      pointer to destination of the newly split aligned span
  * @param   dest_lcut       pointer to destination of address of left-sided remainder of origin
  * @param   dest_rcut       pointer to destination of address of right-sided remainder of origin
- * @param   dest_align      pointer to destination of address of the newly split aligned span
  * @param   split_align     alignment for split span
  * @param   split_szclass   target size class for the new split span
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t 
+ts_err_t 
 span_split_aligned(
     const glob_alloc_state_t   *glob_state,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     span_t                     *origin,
     span_t                    **dest_split,
     span_t                    **dest_lcut,
     span_t                    **dest_rcut,
     size_t                      split_align,
-    ts_szclass_t                split_szclass
+    ts_szclass_t                split_szclass,
+    int32_t                     glob_uid
 );
 
 /**
@@ -173,8 +173,7 @@ span_split_aligned(
  *
  * @param   glob_state   pointer to the global allocator state
  * @param   arena_cfg    pointer to the arena configuration struct
- * @param   error_ctx    pointer to the error context struct
- * @param   spanpool    pointer to the object pool for span metadata
+ * @param   spanpool     pointer to the object pool for span metadata
  * @param   records     pointer to the list that records all minted spans
  * @param   lspan       pointer to the left span (lower memory address)
  * @param   rspan       pointer to the right span (higher memory address)
@@ -195,18 +194,18 @@ span_coalesce(
  * @brief   mutates the state of a span
  *
  * @param   arena_cfg    pointer to the arena configuration struct
- * @param   error_ctx    pointer to the error context struct
- * @param   span        pointer to the span to be mutated
- * @param   state       flag corresponding to state to be implemented
+ * @param   span         pointer to the span to be mutated
+ * @param   state        flag corresponding to state to be implemented
+ * @param   glob_uid     global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 span_set_state(
     const arena_cfg_t      *arena_cfg,
-    tsalloc_errctx_t       *error_ctx,
     span_t                 *span,
-    tsalloc_span_state_t    state
+    tsalloc_span_state_t    state,
+    int32_t                 glob_uid
 );
 
 /**

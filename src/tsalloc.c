@@ -25,7 +25,7 @@ tsalloc_destroy(
     ret = glob_destroy(tsalloctr);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        append_tsalloc_error_trace(tsalloctr->glob_uid);
         return ret;
     }
 
@@ -43,7 +43,7 @@ tsalloc(
     ret = glob_alloc(tsalloctr, dest, nbytes);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        append_tsalloc_error_trace(tsalloctr->glob_uid);
         return ret;
     }
 
@@ -60,8 +60,8 @@ tsalloc_aligned(
     if (!IS_POWER_OF_TWO(align))
     {
         set_tsalloc_error(
-            &(tsalloctr->error_ctx),
-            "talloc_aligned::tsalloc.c align must be power of 2",
+            tsalloctr->glob_uid,
+            "tsalloc_aligned::tsalloc.c align must be power of 2",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -80,7 +80,7 @@ tsalloc_aligned(
     }
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        append_tsalloc_error_trace(tsalloctr->glob_uid);
         return ret;
     }
 
@@ -94,7 +94,7 @@ tsfree(
 ){
     if (addr == nullptr)
     {
-        return  TSALLOC_SUCCESS;
+        return TSALLOC_SUCCESS;
     }
     
     ts_err_t    ret;
@@ -102,7 +102,7 @@ tsfree(
     ret = glob_free(tsalloctr, addr);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(tsalloctr->error_ctx));
+        append_tsalloc_error_trace(tsalloctr->glob_uid);
         return ret;
     }
 
@@ -141,23 +141,8 @@ ts_turnoff_tcache(
 
 void 
 ts_req_errstate(
-    tsalloctr_t        *tsalloctr,
-    tsalloc_errstate   *state
+    tsalloctr_t    *tsalloctr,
+    ts_errstate_t  *state
 ){
-    #ifdef  OPT_TRACE_ERRORS
-    {
-        *state  = (tsalloc_errstate){
-            .trace              = tsalloctr->error_ctx.trace,
-            .message            = tsalloctr->error_ctx.message,
-            .os_error_code      = tsalloctr->error_ctx.os_error_code,
-            .tsalloc_error_code = tsalloctr->error_ctx.error_code
-        };
-    }
-    #else 
-        *state  = (tsalloc_errstate){
-            .message            = tsalloctr->error_ctx.message,
-            .os_error_code      = tsalloctr->error_ctx.os_error_code,
-            .tsalloc_error_code = tsalloctr->error_ctx.error_code
-        };
-    #endif  //OPT_TRACE_ERRORS
+    _ts_req_errstate(state, tsalloctr->glob_uid);
 }

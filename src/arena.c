@@ -12,50 +12,51 @@
 #include    <stdatomic.h>
 
 
-tsalloc_err_t
+ts_err_t
 arena_init(
     const glob_t               *glob,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pagetrie_t                 *pagetrie,
     byte_t                     *auxil_mem,
     arena_t                    *arena,
     uint16_t                    arena_uid
 ){
+    int32_t glob_uid = glob->glob_uid;
+
     if (!auxil_mem)
     {
         set_tsalloc_error(
-            error_ctx,
-            "arena_init::arena.h nullptr axuil_mem argument",
+            glob_uid,
+            "arena_init::arena.c nullptr auxil_mem argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
     }
     
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
     
     *arena = (arena_t){
         .glob       = glob,
         .glob_state = glob_state,
         .arena_cfg  = arena_cfg,
         .epoch.max  = glob_state->epoch_max,
-        .error_ctx  = error_ctx,
+        .glob_uid   = glob_uid,
         .arena_uid  = arena_uid
     };
 
     ret = scache_init(
         glob_state, 
         arena_cfg, 
-        error_ctx, 
         pagetrie, 
         auxil_mem, 
         &(arena->scache), 
-        arena_uid
+        arena_uid,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -65,46 +66,46 @@ arena_init(
     ret = bcache_init(
         glob_state, 
         arena_cfg, 
-        error_ctx, 
         &(arena->scache), 
         bcache_auxil_mem_addr, 
-        &(arena->bcache)
+        &(arena->bcache),
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)scache_deinit(nullptr, &(arena->scache));
-        append_tsalloc_error_trace(error_ctx);
+        (void)scache_deinit(&(arena->scache), TSALLOC_NO_ERROR_CONTEXT);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 arena_deinit(
     arena_t    *arena
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     if (arena->arena_cfg->unmap_on_termination)
     {
-        ret = scache_destroy(arena->arena_cfg, arena->error_ctx, &(arena->scache));
+        ret = scache_destroy(arena->arena_cfg, &(arena->scache), arena->glob_uid);
     }
     else
     {
-        ret = scache_deinit(arena->error_ctx, &(arena->scache));
+        ret = scache_deinit(&(arena->scache), arena->glob_uid);
     }
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)bcache_deinit(arena->error_ctx, &(arena->bcache));
-        append_tsalloc_error_trace(arena->error_ctx);
+        (void)bcache_deinit(&(arena->bcache), arena->glob_uid);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
-    ret = bcache_deinit(arena->error_ctx, &(arena->bcache));
+    ret = bcache_deinit(&(arena->bcache), arena->glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 

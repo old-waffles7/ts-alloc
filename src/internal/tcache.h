@@ -74,13 +74,15 @@ _tcache_mem_size(
  * @brief   flushes all columns in a thread-local cache
  *
  * @param   cache   pointer to thread-local cache being flushed
+ *
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 _tcache_flush(
     tcache_t   *cache
 ){
     ts_szclass_t    nszclasses;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
     
     nszclasses  = cache->nszclasses;
     for (ts_szclass_t i = 0; i < nszclasses; i++)
@@ -88,7 +90,7 @@ _tcache_flush(
         ret = col_flush(cache->macro, cache->columns + i);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(&(cache->macro->error_ctx));
+            append_tsalloc_error_trace(cache->macro->glob_uid);
             return ret;
         }
     }
@@ -123,7 +125,7 @@ _tcache_decay(
  *
  * @return  status code representing success or failure
  */
-static tsalloc_err_t
+static ts_err_t
 tcache_create(
     glob_t     *glob,
     tcache_t  **dest
@@ -131,12 +133,12 @@ tcache_create(
     byte_t *raw;
     size_t  nbytes_req;
 
-    nbytes_req  =_tcache_mem_size(glob->glob_state);
+    nbytes_req  = _tcache_mem_size(glob->glob_state);
     raw         = (byte_t*)sys_map(nbytes_req);
     if (raw == nullptr)
     {
         set_tsalloc_error(
-            &(glob->error_ctx),
+            glob->glob_uid,
             "tcache_create::tcache.h os failure to map memory for tcache",
             TSALLOC_OS_ERR
         );
@@ -159,27 +161,30 @@ tcache_create(
         .nszclasses = nszclasses
     };
 
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
         ret = col_init(
             glob->glob_state, 
-            &(glob->error_ctx), 
             auxil_mems_addr, 
             columns_addr + i, 
-            i
+            i,
+            glob->glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(&(glob->error_ctx));
+            append_tsalloc_error_trace(glob->glob_uid);
             return ret;
         }
 
-
-        auxil_mems_addr    += col_auxil_mem_size(glob->glob_state->tcache_info[i]);
+        auxil_mems_addr += col_auxil_mem_size(glob->glob_state->tcache_info[i]);
     }
 
+    #include <stdio.h>
+    printf("ledger head addr: %lx\n", (uintptr_t)glob->ledger.head);
+    glob_register_tcache(glob, cache);
+    printf("ledger head addr: %lx\n", (uintptr_t)glob->ledger.head);
     *dest   = cache;
 
     return TSALLOC_SUCCESS;
@@ -189,42 +194,55 @@ tcache_create(
 /**
  * @brief   destroys a thread-local cache
  *
- * @param   cache   pointer to thread-local cache being destroyed
+ * @param   cache       pointer to thread-local cache being destroyed
+ * @param   deregister  if true, removes the cache from the global ledger
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 tcache_destroy(
-    tcache_t   *cache
+    tcache_t   *cache,
+    bool        deregister
 ){
     if (!cache)
     {
         return TSALLOC_SUCCESS;
     }
-    
-    int ret;
 
-    ret = _tcache_flush(cache);
-    if (((tsalloc_err_t)ret) != TSALLOC_SUCCESS)
+    if (deregister)
     {
-        append_tsalloc_error_trace(&(cache->macro->error_ctx));
-        return ret;
+        glob_deregister_tcache(cache->macro, cache);
     }
 
-    ret = sys_unmap(((void*)cache), _tcache_mem_size(cache->macro->glob_state));
-    if (ret != 0)
+    ts_err_t    ret1;
+
+    ret1    = _tcache_flush(cache);
+    if (ret1 != TSALLOC_SUCCESS)
+    {
+        append_tsalloc_error_trace(cache->macro->glob_uid);
+        return ret1;
+    }
+
+    size_t  cache_size;
+    int32_t glob_uid;
+    int     ret2;
+
+    cache_size  = _tcache_mem_size(cache->macro->glob_state);
+    glob_uid    = cache->macro->glob_uid;
+    ret2        = sys_unmap(((void*)cache), cache_size);
+    if (ret2 != 0)
     {
         set_tsalloc_error(
-            &(cache->macro->error_ctx),
+            glob_uid,
             "tcache_destroy::tcache.h os failure to unmap memory for tcache",
-            TSALLOC_OS_ERR
+            TSALLOC_OS_ERR,
+            ret2
         );
         return TSALLOC_OS_ERR;
     }
 
     return TSALLOC_SUCCESS;
 }
-
 
 /**
  * @brief   retrieves a block from a thread-local cache
@@ -237,13 +255,13 @@ tcache_destroy(
  *
  * @warning caller must check @p szclass is valid
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 tcache_get_block(
     tcache_t       *cache,
     byte_t        **dest,
     ts_szclass_t    szclass
 ){
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     ret = col_get_block(
         cache->macro, 
@@ -252,7 +270,7 @@ tcache_get_block(
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(cache->macro->error_ctx));
+        append_tsalloc_error_trace(cache->macro->glob_uid);
         return ret;
     }
 

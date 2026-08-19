@@ -87,58 +87,58 @@ scache_query(
  *
  * @param   global_state    pointer to the global allocation state
  * @param   arena_cfg       pointer to the arena configuration
- * @param   error_ctx       pointer to the error context used to report failure
  * @param   pagetrie        pagetrie used to register and query cached spans
  * @param   auxil_mem       pre-allocated auxiliary memory for bins and bitmap
  * @param   cache           pointer to the span cache being initialized
  * @param   arena_uid       unique identifier of the arena owning the cache
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
  */
-tsalloc_err_t
+ts_err_t
 scache_init(
     const glob_alloc_state_t   *global_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pagetrie_t                 *pagetrie,
     byte_t                     *auxil_mem,
     scache_t                   *cache,
-    uint16_t                    arena_uid
+    uint16_t                    arena_uid,
+    int32_t                     glob_uid
 );
 
 /*
  * @brief   deinitializes a span cache without explicitly unmapping memory
  *
- * @param   error_ctx  pointer to the error context used to report failure
  * @param   cache      pointer to the span cache being deinitialized
+ * @param   glob_uid   global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
  *
  * @warning this function does not explicitly unmap any underlying span mappings
  */
-tsalloc_err_t
+ts_err_t
 scache_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t   *cache,
+    int32_t     glob_uid
 );
 
 /*
  * @brief   destroys a span cache and explicitly unmaps its origin mappings
  *
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context used to report failure
  * @param   cache       pointer to the span cache being destroyed
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` if all tracked mappings and resources were
  *          successfully destroyed, otherwise an appropriate error code
  *
  * @warning this function requires `arena_cfg->unmap_on_termination` to be enabled 
  */
-tsalloc_err_t
+ts_err_t
 scache_destroy(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t           *cache,
+    int32_t             glob_uid
 );
 
 /*
@@ -148,16 +148,19 @@ scache_destroy(
  * @param   arena_cfg   pointer to the arena configuration
  * @param   cache       pointer to the target span cache
  * @param   span        span being returned to the cache
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
+ *
+ * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
  *
  * @warning the span must already be registered in the cache's pagetrie
  */
-tsalloc_err_t
+ts_err_t
 scache_put_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
-    span_t                     *span
+    span_t                     *span,
+    int32_t                     glob_uid
 );
 
 /*
@@ -167,24 +170,23 @@ scache_put_span(
  *                          non-null, the returned span is initialized as a slab
  * @param   glob_state      pointer to the global allocation state
  * @param   arena_cfg       pointer to the arena configuration
- * @param   error_ctx       pointer to the error context used to report failure
  * @param   cache           pointer to the target span cache
  * @param   dest            pointer receiving the retrieved span
  * @param   szclass         requested span size class
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
  */
-tsalloc_err_t
+ts_err_t
 scache_get_span(
     const tsalloc_slab_info_t  *slab_init_info,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                    **dest,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 );
-
 
 /*
  * @brief   retrieves a specially aligned span suitable for a requested size class
@@ -193,43 +195,43 @@ scache_get_span(
  *                          non-null, the returned span is initialized as a slab
  * @param   glob_state      pointer to the global allocation state
  * @param   arena_cfg       pointer to the arena configuration
- * @param   error_ctx       pointer to the error context used to report failure
  * @param   cache           pointer to the target span cache
  * @param   dest            pointer receiving the retrieved span
  * @param   align           requested alignment
  * @param   szclass         requested span size class
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
  *
  * @warning @p align must be strictly greater than pagesize configured by @p glob_state
  */
-tsalloc_err_t
+ts_err_t
 scache_get_span_aligned(
     const tsalloc_slab_info_t  *slab_init_info,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                    **dest,
     size_t                      align,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 );
 
 /*
  * @brief   decays cached spans across all size-class bins
  *
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context used to report failure
  * @param   cache       pointer to the span cache being decayed
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  `TSALLOC_SUCCESS` if all bins decay successfully, otherwise the
  *          most recent error encountered while processing the bins
  */
-tsalloc_err_t
+ts_err_t
 scache_decay(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t           *cache,
+    int32_t             glob_uid
 );
 
 

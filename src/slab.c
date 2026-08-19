@@ -8,20 +8,20 @@
 #include    <string.h>
 
 
-tsalloc_err_t 
+ts_err_t 
 slab_init(
     const tsalloc_slab_info_t  *slabinfo,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *slabpool,
-    span_t                     *span
+    span_t                     *span,
+    int32_t                     glob_uid
 ){
-    slab_t         *slabmeta;
-    tsalloc_err_t   ret;
+    slab_t     *slabmeta;
+    ts_err_t    ret;
 
-    ret = objpool_alloc(error_ctx, slabpool, ((void*)(&slabmeta)));
+    ret = objpool_alloc(slabpool, ((void*)(&slabmeta)), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 

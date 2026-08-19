@@ -32,15 +32,16 @@ static inline void
 print_error(
     tsalloctr_t    *allocator
 ){
-    tsalloc_errstate    state;
+    ts_errstate_t   state;
 
+    //  see "tsalloc.h" for all `ts_err_t` values and their corresponding descriptions
     ts_req_errstate(allocator, &state);
     printf(
         "TSALLOC_ERROR_CODE:    %d\n"
         "OS_ERROR_CODE:         %d\n"
         "TSALLOC_MESSAGE:       %s\n"
         "TRACE:                 %s\n",
-        state.tsalloc_error_code,
+        state.ts_error_code,
         state.os_error_code,
         state.message,
         state.trace
@@ -346,7 +347,7 @@ randint_vec(
     }
 }
 
-#define     N_ELEMENTS          8192
+#define     N_ELEMENTS          4194304ULL
 #define     THREADS_PER_BLOCK   256
 #define     N_BLOCKS            ((uint64_t)(N_ELEMENTS) + (uint64_t)(THREADS_PER_BLOCK) - (uint64_t)(1)) / (THREADS_PER_BLOCK)
 
@@ -414,9 +415,7 @@ int main()
         .lcpu_arena_count           = 4,
         .unmap_on_termination       = true,
         //  cannot implicity coalesce seperate mappings in this implementation, but it is possible
-        //  by augmenting the auxil functions we defined. below `main` are implementations with
-        //  which this flag can be set to true. they are a bit too complicated for a simple tutorial
-        //  though.
+        //  by augmenting the auxil functions we defined.
         .allow_cross_origin_merge   = false
     };
 
@@ -542,7 +541,3 @@ int main()
 
     return 0;
 }
-
-// fixed constant bug through mem_size fns with static caching NOT GOOF RO MULTI AREANS
-
-// removed memset from span set state maybe pass in auxil memset later?

@@ -42,13 +42,13 @@ typedef struct column   col_t;
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 _col_refill(
     glob_t *glob,
     col_t  *col
 ){
-    size_t          nblocks;
-    tsalloc_err_t   ret;
+    size_t      nblocks;
+    ts_err_t    ret;
 
     nblocks = MAX(1, (col->capacity >> 1));
     ret = arena_get_batch(
@@ -59,7 +59,7 @@ _col_refill(
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(glob->error_ctx));
+        append_tsalloc_error_trace(glob->glob_uid);
         return ret;
     }
 
@@ -88,26 +88,26 @@ col_auxil_mem_size(
  * @brief   initializes a column
  *
  * @param   glob_state  pointer to global allocation state
- * @param   error_ctx   pointer to error handling context
  * @param   auxil_mem   pointer to pre-allocated memory for the column
  * @param   col         pointer to column being initialized
  * @param   szclass     size class associated with the column
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 col_init(
     const glob_alloc_state_t   *glob_state,
-    tsalloc_errctx_t           *error_ctx,
     byte_t                     *auxil_mem,
     col_t                      *col,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
     if (!auxil_mem)
     {
         set_tsalloc_error(
-            error_ctx,
-            "col_init::column.h nullptr axuil_mem argument",
+            glob_uid,
+            "col_init::column.h nullptr auxil_mem argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -116,8 +116,8 @@ col_init(
     if (szclass > glob_state->nszclasses_slab)
     {
         set_tsalloc_error(
-            error_ctx,
-            "col_init::column.h invalide szclass arguemnt",
+            glob_uid,
+            "col_init::column.h invalid szclass argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -142,18 +142,20 @@ col_init(
  *
  * @param   glob    pointer to global allocator
  * @param   col     pointer to column being flushed
+ *
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 col_flush(
     glob_t     *glob,
     col_t      *col
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     ret = glob_put_batch_inarena(glob, col->blocks, col->nblocks);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(&(glob->error_ctx));
+        append_tsalloc_error_trace(glob->glob_uid);
         return ret;
     }
 
@@ -170,7 +172,7 @@ col_flush(
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 col_get_block(
     glob_t             *glob,
     col_t              *col,
@@ -178,12 +180,12 @@ col_get_block(
 ){
     if (col->nblocks == 0)
     {
-        tsalloc_err_t   ret;
+        ts_err_t    ret;
 
         ret = _col_refill(glob, col);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(&(glob->error_ctx));
+            append_tsalloc_error_trace(glob->glob_uid);
             return ret;
         }
     }

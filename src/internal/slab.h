@@ -37,20 +37,19 @@ typedef struct slab slab_t;
 /*
  * @brief   initializes a new memory slab
  *
- * @param   cfg         pointer to the allocator configuration
  * @param   slabinfo    pointer to the slab information/layout configuration
- * @param   error_ctx   pointer to the error context struct
  * @param   slabpool    pointer to the object pool used for slab metadata allocation
  * @param   span        pointer to the span being formatted as a slab
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t 
+ts_err_t 
 slab_init(
     const tsalloc_slab_info_t  *slabinfo,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *slabpool,
-    span_t                     *span
+    span_t                     *span,
+    int32_t                     glob_uid
 );
 
 /*

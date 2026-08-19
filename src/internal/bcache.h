@@ -37,27 +37,27 @@ typedef struct block_cache  bcache_t;
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   macro       pointer to backup span cache
  * @param   auxil_mem   pointer to pre-allocated memory buffer for internal structures
  * @param   cache       pointer to block cache instance to initialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t   
+static inline ts_err_t   
 bcache_init(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *macro,
     byte_t                     *auxil_mem,
-    bcache_t                   *cache
+    bcache_t                   *cache,
+    int32_t                     glob_uid
 ){
     if (!auxil_mem)
     {
         set_tsalloc_error(
-            error_ctx,
-            "scache_init::scache.c nullptr axuil_mem argument",
+            glob_uid,
+            "bcache_init::bcache.h nullptr auxil_mem argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -74,25 +74,25 @@ bcache_init(
             .nszclasses = nszclasses
     };
 
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     for (ts_szclass_t i = 0; i < nszclasses; i++)
     {
         ret = pail_init(
             glob_state, 
             arena_cfg, 
-            error_ctx, 
             macro, 
             pails + i, 
-            i
+            i,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             for (ts_szclass_t j = 0; j < i; j++)
             {
-                (void)pail_deinit(nullptr, pails + j);
+                (void)pail_deinit(pails + j, TSALLOC_NO_ERROR_CONTEXT);
             }
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
     }
@@ -103,26 +103,26 @@ bcache_init(
 /**
  * @brief   deinitializes a block cache
  *
- * @param   error_ctx   pointer to the error context
  * @param   cache       pointer to block cache instance to deinitialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bcache_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    bcache_t           *cache
+    bcache_t   *cache,
+    int32_t     glob_uid
 ){
-    tsalloc_err_t   ret1, ret2;
+    ts_err_t   ret1, ret2;
 
     ret2    = TSALLOC_SUCCESS;
     for (ts_szclass_t i = 0; i < cache->nszclasses; i++)
     {
-        ret1    = pail_deinit(error_ctx, cache->pails + i);
+        ret1    = pail_deinit(cache->pails + i, glob_uid);
         if (ret1 != TSALLOC_SUCCESS)
         {
             ret2    = ret1;
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
         }
     }
 
@@ -154,39 +154,39 @@ bcache_auxil_mem_size(
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   cache       pointer to block cache 
  * @param   dest        array receiving the block addresses
  * @param   szclass     size class of requested blocks
  * @param   nblocks     number of blocks to retrieve
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  *
  * @warning szclass must be a validated by caller
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bcache_get_batch(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     bcache_t                   *cache,
     byte_t                    **dest,
     ts_szclass_t                szclass,
-    size_t                      nblocks
+    size_t                      nblocks,
+    int32_t                     glob_uid
 ){    
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     ret = pail_get_batch(
         glob_state, 
         arena_cfg, 
-        error_ctx, 
         cache->pails + szclass, 
         dest, 
-        nblocks
+        nblocks,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -198,33 +198,35 @@ bcache_get_batch(
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   cache       pointer to block cache
  * @param   slab        slab containing the block
  * @param   block       pointer to the memory block being returned
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
+ *
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t 
+static inline ts_err_t 
 bcache_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     bcache_t                   *cache,
     span_t                     *slab,
-    byte_t                     *block
+    byte_t                     *block,
+    int32_t                     glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
     
     ret = pail_put_block(
         glob_state, 
         arena_cfg, 
-        error_ctx,
         cache->pails + ((ts_szclass_t)slab->slabmeta->szclass), 
         slab, 
-        block
+        block,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -232,4 +234,4 @@ bcache_put_block(
 }
 
 
-#endif  //BCACHE_H
+#endif  //bcache_h

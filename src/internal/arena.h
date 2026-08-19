@@ -39,10 +39,10 @@ struct arena
         size_t  alloc;
     } epoch;
 
-    tsalloc_errctx_t   *error_ctx;
-    scache_t            scache;
-    bcache_t            bcache;
-    uint16_t            arena_uid;
+    scache_t    scache;
+    bcache_t    bcache;
+    int32_t     glob_uid;
+    uint16_t    arena_uid;
 };
 typedef struct arena    arena_t;
 
@@ -53,16 +53,16 @@ typedef struct arena    arena_t;
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 _arena_decay(
     arena_t    *arena
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
-    ret = scache_decay(arena->arena_cfg, arena->error_ctx, &(arena->scache));
+    ret = scache_decay(arena->arena_cfg, &(arena->scache), arena->glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
@@ -91,26 +91,28 @@ arena_auxil_mem_size(
  * @param   arena   pointer to arena receiving the block
  * @param   slab    pointer to slab containing the block
  * @param   block   block being returned
+ *
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 arena_put_block(
     arena_t    *arena,
     span_t     *slab,
     byte_t     *block
 ){
-    tsalloc_err_t ret;
+    ts_err_t ret;
 
     ret = bcache_put_block(
         arena->glob_state, 
         arena->arena_cfg, 
-        arena->error_ctx,
         &(arena->bcache), 
         slab, 
-        block
+        block,
+        arena->glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
@@ -122,8 +124,10 @@ arena_put_block(
  *
  * @param   arena   pointer to arena receiving the span
  * @param   span    pointer to span being returned
+ *
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 arena_put_span(
     arena_t    *arena,
     span_t     *span
@@ -131,9 +135,9 @@ arena_put_span(
     return scache_put_span(
         arena->glob_state, 
         arena->arena_cfg, 
-        arena->error_ctx, 
         &(arena->scache), 
-        span
+        span,
+        arena->glob_uid
     );
 }
 
@@ -147,27 +151,27 @@ arena_put_span(
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 arena_get_batch(
     arena_t        *arena,
     byte_t        **dest,
     ts_szclass_t    szclass,
     size_t          nblocks
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     ret = bcache_get_batch(
         arena->glob_state, 
         arena->arena_cfg, 
-        arena->error_ctx, 
         &(arena->bcache), 
         dest, 
         szclass, 
-        nblocks
+        nblocks,
+        arena->glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
@@ -184,26 +188,26 @@ arena_get_batch(
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 arena_get_span(
     arena_t        *arena,
     span_t        **dest,
     ts_szclass_t    szclass
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     ret = scache_get_span(
         nullptr, 
         arena->glob_state, 
         arena->arena_cfg, 
-        arena->error_ctx, 
         &(arena->scache), 
         dest, 
-        szclass
+        szclass,
+        arena->glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
@@ -215,7 +219,7 @@ arena_get_span(
         ret = _arena_decay(arena);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(arena->error_ctx);
+            append_tsalloc_error_trace(arena->glob_uid);
             return ret;
         }
         arena->epoch.alloc  = 0;
@@ -240,28 +244,28 @@ arena_get_span(
  *
  * @warning @p align must be strictly greater than pagesize @p arena is configured to
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 arena_get_span_aligned(
     arena_t        *arena,
     span_t        **dest,
     size_t          align,
     ts_szclass_t    szclass
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     ret = scache_get_span_aligned(
         nullptr, 
         arena->glob_state, 
         arena->arena_cfg, 
-        arena->error_ctx, 
         &(arena->scache), 
         dest, 
         align, 
-        szclass
+        szclass,
+        arena->glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(arena->error_ctx);
+        append_tsalloc_error_trace(arena->glob_uid);
         return ret;
     }
 
@@ -273,7 +277,7 @@ arena_get_span_aligned(
         ret = _arena_decay(arena);
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(arena->error_ctx);
+            append_tsalloc_error_trace(arena->glob_uid);
             return ret;
         }
         arena->epoch.alloc  = 0;
@@ -293,7 +297,6 @@ arena_get_span_aligned(
  * @param   glob        pointer to global arena
  * @param   glob_state  pointer to global allocation state
  * @param   arena_cfg   pointer to arena configuration
- * @param   error_ctx   pointer to error handling context
  * @param   pagetrie    pointer to pagetrie used by the arena
  * @param   auxil_mem   pointer to pre-allocated auxiliary memory for the arena
  * @param   arena       pointer to arena instance to initialize
@@ -301,12 +304,11 @@ arena_get_span_aligned(
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 arena_init(
     const glob_t               *glob,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pagetrie_t                 *pagetrie,
     byte_t                     *auxil_mem,
     arena_t                    *arena,
@@ -321,7 +323,7 @@ arena_init(
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 arena_deinit(
     arena_t    *arena
 );

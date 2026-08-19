@@ -32,49 +32,49 @@ typedef struct pagetrie pagetrie_t;
 /*
  * @brief   initializes the pagetrie and its internal object pool
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   pagetrie    pointer to the pagetrie to initialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 pagetrie_init(
-    tsalloc_errctx_t   *error_ctx,
-    pagetrie_t         *pagetrie
+    pagetrie_t   *pagetrie,
+    int32_t       glob_uid
 );
 
 /*
  * @brief   destroys the pagetrie and frees all associated nodes
  *
- * @param   error_ctx   pointer to the error context struct
  * @param   pagetrie    pointer to the pagetrie to deinitialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 pagetrie_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    pagetrie_t         *pagetrie
+    pagetrie_t   *pagetrie,
+    int32_t       glob_uid
 );
 
 /*
  * @brief   inserts data into the pagetrie for a specific virtual page
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   pagetrie    pointer to the pagetrie instance
  * @param   key         virtual memory address in page to map
  * @param   data        pointer to the metadata to associate with the page
  * @param   nbytes      size of key
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 pagetrie_insert(
-    tsalloc_errctx_t   *error_ctx,
-    pagetrie_t         *pagetrie,
-    const void         *key,
-    const void         *data,
-    size_t              nbytes
+    pagetrie_t   *pagetrie,
+    const void   *key,
+    const void   *data,
+    size_t        nbytes,
+    int32_t       glob_uid
 );
 
 /*
@@ -82,12 +82,13 @@ pagetrie_insert(
  * 
  * @param   pagetrie    pointer to the pagetrie instance
  * @param   key         virtual memory address in page associated with key to be removed from trie
+ * @param   nbytes      size of key
  */
 bool 
 pagetrie_remove(
-    pagetrie_t     *pagetrie,
-    const byte_t   *key,
-    size_t          nbytes                                                
+    pagetrie_t   *pagetrie,
+    const byte_t *key,
+    size_t        nbytes                                                
 );
 
 /*

@@ -9,6 +9,7 @@ option(VERBOSE_TRACE "Enable error stack breadcrumbs" ON)
 add_library(tsalloc SHARED
     src/arena.c
     src/bucket.c
+    src/error.c
     src/glob.c
     src/ledger.c
     src/objpool.c

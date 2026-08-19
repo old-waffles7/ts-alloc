@@ -31,21 +31,19 @@
         TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
         TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
     }; 
+    typedef enum TSALLOC_ERROR  ts_err_t;
+    
+    
+    struct ts_error_state
+    {
+        const char *trace;              ///< set only if TSALLOC is compiled with OPT_TRACE_ERRORS enabled
+        const char *message;            ///< error message set by TSALLOC
+        int         os_error_code;      ///< error code set by OS
+        ts_err_t    ts_error_code;      ///< error code set by TSALLOC
+    };
+    typedef struct ts_error_state   ts_errstate_t;
 
 #endif      //TSALLOC_ERROR_DEFINED
-
-typedef enum TSALLOC_ERROR  tsalloc_err_t;
-typedef enum TSALLOC_ERROR  ts_err_t;
-
-
-struct tsalloc_error_state
-{
-    const char *trace;              ///< set only if TSALLOC is compiled with OPT_TRACE_ERRORS enabled
-    const char *message;            ///< error message set by TSALLOC
-    int         os_error_code;      ///< error code set by OS
-    ts_err_t    tsalloc_error_code; ///< error code set by TSALLOC
-};
-typedef struct tsalloc_error_state  tsalloc_errstate;
 
 
 #ifndef     TSALLOC_ARENACONFIG_DEFINED
@@ -78,7 +76,7 @@ typedef struct tsalloc_error_state  tsalloc_errstate;
         tsalloc_advice_t    flag
     );
 
-    typedef int32_t         ts_szclass_t;
+    typedef int32_t ts_szclass_t;
 
 
     /**
@@ -203,8 +201,8 @@ ts_turnoff_tcache(
 
 void 
 ts_req_errstate(
-    tsalloctr_t        *tsalloctr,
-    tsalloc_errstate   *state
+    tsalloctr_t    *tsalloctr,
+    ts_errstate_t  *state
 );
 
 

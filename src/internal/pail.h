@@ -44,33 +44,33 @@ typedef struct pail pail_t;
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   pail        pointer to the pail receiving the new slab
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing the outcome of the operation
  */
-static tsalloc_err_t
+static ts_err_t
 _pail_mint_slab(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
-    pail_t                     *pail
+    pail_t                     *pail,
+    int32_t                     glob_uid
 ){
-    span_t         *slab;
-    tsalloc_err_t   ret;
+    span_t     *slab;
+    ts_err_t    ret;
 
     ret = scache_get_span(
         pail->init_info, 
         glob_state, 
         arena_cfg, 
-        error_ctx, 
         pail->macro, 
         &slab, 
-        pail->szclass
+        pail->szclass,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -86,33 +86,33 @@ _pail_mint_slab(
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   pail        pointer to the pail supplying the block
  * @param   dest        pointer to the destination block address
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing the outcome of the operation
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 _pail_get_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
-    byte_t                    **dest
+    byte_t                    **dest,
+    int32_t                     glob_uid
 ){
     if (!pail->slabs.head)
     {
-        tsalloc_err_t   ret;
+        ts_err_t    ret;
 
         ret = _pail_mint_slab(
             glob_state, 
             arena_cfg, 
-            error_ctx, 
-            pail
+            pail,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
     }
@@ -135,28 +135,32 @@ _pail_get_block(
 /**
  * @brief   returns a block to its slab and updates the pail's slab registry
  *
- * @param   glob_state  pointer to the global allocation state
- * @param   arena_cfg   pointer to the arena configuration
- * @param   pail        pointer to the pail receiving the block
- * @param   slab        pointer to the slab containing the block
- * @param   block       pointer to the block being returned
+ * @param   glob_state      pointer to the global allocation state
+ * @param   arena_cfg       pointer to the arena configuration
+ * @param   pail            pointer to the pail receiving the block
+ * @param   slab            pointer to the slab containing the block
+ * @param   block           pointer to the block being returned
+ * @param   flush_iffull    flag indicating whether to flush fully freed slabs
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
+ *
+ * @return  status code representing the outcome of the operation
  *
  * @warning @p slab must be registered in global pagetrie
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 _pail_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
     span_t                     *slab,
     byte_t                     *block,
-    bool                        flush_iffull
+    bool                        flush_iffull,
+    int32_t                     glob_uid
 ){
     slab_put_block(slab, ((void*)block));
 
-    bool            isfull;
-    tsalloc_err_t   ret;
+    bool        isfull;
+    ts_err_t    ret;
 
     isfull  = (slab->slabmeta->nblocks_free == pail->init_info->nblocks);
     if (flush_iffull && isfull && (pail->nslabs > 1))
@@ -167,14 +171,14 @@ _pail_put_block(
         ret = scache_put_span(
             glob_state, 
             arena_cfg, 
-            error_ctx, 
             pail->macro, 
-            slab
+            slab,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             registry_push(&(pail->slabs), slab);
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
 
@@ -194,27 +198,27 @@ _pail_put_block(
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
- * @param   spancache   pointer to the span cache used by the pail
+ * @param   macro       pointer to the span cache used by the pail
  * @param   pail        pointer to the pail being initialized
  * @param   szclass     size class associated with the pail
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing the outcome of the operation
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 pail_init(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *macro,
     pail_t                     *pail,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
     if (szclass >= glob_state->nszclasses_slab)
     {
         set_tsalloc_error(
-            error_ctx,
-            "pail_init::pail.h invalide szclass argument",
+            glob_uid,
+            "pail_init::pail.h invalid szclass argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -226,12 +230,12 @@ pail_init(
         .szclass    = szclass
     };
 
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
-    ret = mutex_init(error_ctx, &(pail->lock));
+    ret = mutex_init(&(pail->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -242,22 +246,22 @@ pail_init(
 /**
  * @brief   deinitializes a pail
  *
- * @param   error_ctx   pointer to the error context
  * @param   pail        pointer to the pail being deinitialized
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing the outcome of the operation
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 pail_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    pail_t             *pail
+    pail_t     *pail,
+    int32_t     glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
-    ret = mutex_deinit(error_ctx, &(pail->lock));
+    ret = mutex_deinit(&(pail->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -270,55 +274,55 @@ pail_deinit(
  *
  * @param   glob_state  pointer to the global allocation state
  * @param   arena_cfg   pointer to the arena configuration
- * @param   error_ctx   pointer to the error context
  * @param   pail        pointer to the pail supplying the blocks
  * @param   dest        array receiving the block addresses
  * @param   nblocks     number of blocks to retrieve
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing the outcome of the operation
  */
-static tsalloc_err_t
+static ts_err_t
 pail_get_batch(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
     byte_t                    **dest,
-    size_t                      nblocks
+    size_t                      nblocks,
+    int32_t                     glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     mutex_lock(&(pail->lock));
     
-        for (int i = 0; i < nblocks; i++)
+        for (size_t i = 0; i < nblocks; i++)
         {
             ret = _pail_get_block(
                 glob_state, 
                 arena_cfg, 
-                error_ctx, 
                 pail, 
-                (dest + i)
+                (dest + i),
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS) 
             {
                 span_t *slab;
 
-                for (int j = 0; j < i; j++) 
+                for (size_t j = 0; j < i; j++) 
                 {
                     slab    = scache_query(pail->macro, dest[j]);
                     //  cannot fail as flush can never be procced
                     (void)_pail_put_block(
                         glob_state, 
                         arena_cfg, 
-                        nullptr, 
                         pail, 
                         slab, 
                         dest[j],
-                        false
+                        false,
+                        glob_uid
                     );
                 }
                 mutex_unlock(&(pail->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -336,35 +340,38 @@ pail_get_batch(
  * @param   pail        pointer to the pail receiving the block
  * @param   slab        pointer to the slab containing the block
  * @param   block       pointer to the block being returned
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
+ *
+ * @return  status code representing the outcome of the operation
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 pail_put_block(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pail_t                     *pail,
     span_t                     *slab,
-    byte_t                     *block
+    byte_t                     *block,
+    int32_t                     glob_uid
 ){    
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
     mutex_lock(&(pail->lock));
 
         ret = _pail_put_block(
             glob_state, 
             arena_cfg, 
-            error_ctx, 
             pail, 
             slab, 
             block, 
-            true
+            true,
+            glob_uid
         );
     
     mutex_unlock(&(pail->lock));
 
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 

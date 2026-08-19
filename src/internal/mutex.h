@@ -1,3 +1,4 @@
+
 /*
  * @file    mutex.h
  * @brief   posix-sephamore backed mutex with adaptive spin support
@@ -54,15 +55,15 @@ typedef struct mutex mutex_t;
 /*
  * @brief   initializes the mutex
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   mutex       pointer to the mutex to initialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 mutex_init(
-    tsalloc_errctx_t   *error_ctx,
-    mutex_t            *mutex
+    mutex_t    *mutex,
+    int32_t     glob_uid
 ){
     int ret;
 
@@ -70,7 +71,7 @@ mutex_init(
     if (ret != 0)
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "mutex_init()::mutex.h os semaphore initialization error",
             TSALLOC_OS_ERR
         );
@@ -85,15 +86,15 @@ mutex_init(
 /*
  * @brief   destroys the mutex
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   mutex       pointer to the mutex to deinitialize
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t 
+static inline ts_err_t 
 mutex_deinit(
-    tsalloc_errctx_t   *error_ctx, 
-    mutex_t            *mutex
+    mutex_t    *mutex,
+    int32_t     glob_uid
 ){
     int ret;
 
@@ -101,7 +102,7 @@ mutex_deinit(
     if (ret != 0)
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "mutex_deinit()::mutex.h os semaphore destruction error",
             TSALLOC_OS_ERR
         );

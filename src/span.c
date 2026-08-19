@@ -1,6 +1,7 @@
 
 #include    "internal/common.h"
 #include    "internal/error.h"
+
 #include    "internal/span.h"
 
 #include    "config/tsalloc_config.h"
@@ -13,25 +14,25 @@
 #include    <string.h>
 
 
-tsalloc_err_t
+ts_err_t
 span_create(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     span_t                    **dest,
     ts_szclass_t                szclass,
     uint32_t                   *epoch,
     uint16_t                    arena_uid,
-    size_t                      _align
+    size_t                      _align,
+    int32_t                     glob_uid
 ){
-    span_t         *span;
-    tsalloc_err_t   ret;
+    span_t     *span;
+    ts_err_t    ret;
 
-    ret = objpool_alloc(error_ctx, spanpool, ((void*)(&span)));
+    ret = objpool_alloc(spanpool, ((void*)(&span)), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -48,7 +49,7 @@ span_create(
     {
         set_tsalloc_error
         (
-            error_ctx,
+            glob_uid,
             "span_create::span.c auxilliary mapper could not allocate memory",
             TSALLOC_AUXIL_MAP_ERR
         );
@@ -83,12 +84,12 @@ span_create(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 span_destroy(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     objpool_t          *spanpool,
-    span_t             *span
+    span_t             *span,
+    int32_t              glob_uid
 ){
     if (span == nullptr)
     {
@@ -105,7 +106,7 @@ span_destroy(
     if (ret)
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "span_destroy::span.c auxilliary unmapper could not free memory",
             TSALLOC_AUXIL_UNMAP_ERR
         );
@@ -120,14 +121,14 @@ span_destroy(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t 
+ts_err_t 
 span_split(
     const glob_alloc_state_t   *glob_state,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     span_t                    **origin,
     span_t                    **dest,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
     size_t  split_nbytes;
     
@@ -136,7 +137,7 @@ span_split(
     if (((*origin)->nbytes) < split_nbytes)
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "span_split::span.c origin span too small to split",
             TSALLOC_INVALID_ARGS
         );
@@ -155,12 +156,12 @@ span_split(
         return TSALLOC_SUCCESS;
     }
     
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
-    ret = objpool_alloc(error_ctx, spanpool, ((void*)(&split)));
+    ret = objpool_alloc(spanpool, ((void*)(&split)), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -196,17 +197,17 @@ span_split(
 }
 
 //  assume split_align >= pagesize and pow of 2 (minimum span size)
-tsalloc_err_t 
+ts_err_t 
 span_split_aligned(
     const glob_alloc_state_t   *glob_state,
-    tsalloc_errctx_t           *error_ctx,
     objpool_t                  *spanpool,
     span_t                     *origin,
     span_t                    **dest_split,
     span_t                    **dest_lcut,
     span_t                    **dest_rcut,
     size_t                      split_align,
-    ts_szclass_t                split_szclass
+    ts_szclass_t                split_szclass,
+    int32_t                     glob_uid
 ){
     size_t  split_nbytes;
 
@@ -219,7 +220,7 @@ span_split_aligned(
     if ((origin->nbytes) < (split_nbytes + split_align))
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "span_split_aligned::span.c origin span too small to split",
             TSALLOC_INVALID_ARGS
         );
@@ -257,7 +258,7 @@ span_split_aligned(
     span_t         *split;
     span_t         *lcut;
     span_t         *rcut;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
     
     union 
     {
@@ -270,7 +271,7 @@ span_split_aligned(
             uint64_t state     : 2;
             uint64_t is_slab   : 1;
             uint64_t is_alloc  : 1;
-            uint64_t reserved  : 4;
+            uint64_t reserved  : 4; 
         } flags;
     } split_flags, flags;
 
@@ -279,10 +280,10 @@ span_split_aligned(
     split_flags.flags.szclass   = split_szclass;
 
     //  allocate and populate new span descriptor for rcut
-    ret = objpool_alloc(error_ctx, spanpool, ((void*)&rcut));
+    ret = objpool_alloc(spanpool, ((void*)&rcut), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
     flags.raw           = origin->flags.raw;
@@ -296,11 +297,11 @@ span_split_aligned(
     if (lcut_addr != nullptr)
     {
         //  allocate new span descriptor for split
-        ret = objpool_alloc(error_ctx, spanpool, ((void*)&split));
+        ret = objpool_alloc(spanpool, ((void*)&split), glob_uid);
         if (ret != TSALLOC_SUCCESS)
         {
             objpool_free(spanpool, ((void*)rcut));
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
 
@@ -380,12 +381,12 @@ span_coalesce(
     *dest = lspan;
 }
 
-tsalloc_err_t
+ts_err_t
 span_set_state(
-    const arena_cfg_t      *arena_cfg,
-    tsalloc_errctx_t       *error_ctx,
-    span_t                 *span,
-    tsalloc_span_state_t    state
+    const arena_cfg_t  *arena_cfg,
+    span_t             *span,
+    tsalloc_span_state_t    state,
+    int32_t                 glob_uid
 ){
     size_t  nbytes;
 
@@ -415,7 +416,7 @@ span_set_state(
                 if (ret != 0)
                 {
                     set_tsalloc_error(
-                        error_ctx,
+                        glob_uid,
                         "span_set_state::span.h auxilliary madvise error",
                         TSALLOC_AUXIL_MADVISE_ERR
                     );
@@ -440,7 +441,7 @@ span_set_state(
                 if (ret != 0)
                 {
                     set_tsalloc_error(
-                        error_ctx,
+                        glob_uid,
                         "span_set_state::span.h auxilliary madvise error",
                         TSALLOC_AUXIL_MADVISE_ERR
                     );
@@ -453,7 +454,7 @@ span_set_state(
 
         default:
             set_tsalloc_error(
-                    error_ctx,
+                    glob_uid,
                     "span_set_state::span.h invalid flag argued",
                     TSALLOC_INVALID_ARGS
                 );

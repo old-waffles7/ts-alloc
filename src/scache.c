@@ -46,8 +46,8 @@ scache_set_bitmap(
 static inline bool
 scache_find_nonempty_bin(
     const scache_t   *cache,
-    ts_szclass_t      *dest,
-    ts_szclass_t       szclass
+    ts_szclass_t     *dest,
+    ts_szclass_t      szclass
 ){
     uint64_t        *bitmap;
     uint64_t         word;
@@ -87,26 +87,26 @@ scache_find_nonempty_bin(
     return false;
 }
 
-static inline tsalloc_err_t 
+static inline ts_err_t 
 scache_bin_remove(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     scache_t           *cache,
-    span_t             *span
+    span_t             *span,
+    int32_t             glob_uid
 ){
-    bin_t          *bin;
-    tsalloc_err_t   ret;
+    bin_t      *bin;
+    ts_err_t    ret;
 
     bin = cache->bins + span->flags.szclass;
     ret = bin_remove_span(
         arena_cfg, 
-        error_ctx, 
         bin,
-        span
+        span,
+        glob_uid
     );  
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -131,8 +131,8 @@ scache_bin_put(
     bin_t  *bin;
 
     bin = cache->bins + ((ts_szclass_t)span->flags.szclass);
-    //  cannot fail, only chance to file if mutates span state to retained which is not the case
-    (void)bin_put_span(arena_cfg, nullptr, bin, span);
+    //  cannot fail, only chance to fail if mutates span state to retained which is not the case
+    (void)bin_put_span(arena_cfg, bin, span, TSALLOC_NO_ERROR_CONTEXT);
     scache_set_bitmap(
         cache, 
         (ts_szclass_t)(span->flags.szclass), 
@@ -140,28 +140,28 @@ scache_bin_put(
     );
 }
 
-static inline tsalloc_err_t
+static inline ts_err_t
 scache_bin_pop(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     scache_t           *cache,
     span_t            **dest,
-    ts_szclass_t        bin_idx
+    ts_szclass_t        bin_idx,
+    int32_t             glob_uid
 ){
-    bin_t          *bin;
-    span_t         *span;
-    tsalloc_err_t   ret;
+    bin_t      *bin;
+    span_t     *span;
+    ts_err_t    ret;
 
-    bin     = cache->bins + bin_idx;
+    bin = cache->bins + bin_idx;
     ret = bin_get_span(
         arena_cfg, 
-        error_ctx, 
         &span, 
-        bin
+        bin,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -178,19 +178,19 @@ scache_bin_pop(
     return TSALLOC_SUCCESS;
 }
 
-static inline tsalloc_err_t
+static inline ts_err_t
 scache_mint_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                    **dest,
     bool                       *isoverfit,
-    ts_szclass_t                req_szclass
+    ts_szclass_t                req_szclass,
+    int32_t                     glob_uid
 ){
     span_t         *span;
     ts_szclass_t    szclass;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
 
     if (arena_cfg->default_new_span_szclass > req_szclass)
     {
@@ -212,38 +212,38 @@ scache_mint_span(
     ret = span_create(
         glob_state, 
         arena_cfg, 
-        error_ctx, 
         &(cache->spanpool), 
         &span, 
         szclass, 
         &(cache->epoch), 
         cache->arena_uid, 
-        TSALLOC_DEFAULT_ARG
+        TSALLOC_DEFAULT_ARG,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
         *dest   = nullptr;
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     ret = pagetrie_insert(
-        error_ctx, 
         cache->pagetrie, 
         span->addr, 
         span, 
-        span->nbytes
+        span->nbytes,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
         (void)span_destroy(
             arena_cfg, 
-            nullptr, 
             &(cache->spanpool), 
-            span
+            span,
+            TSALLOC_NO_ERROR_CONTEXT
         );
         *dest   = nullptr;
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -257,14 +257,14 @@ scache_mint_span(
 }
 
 //  span must be in pagetrie
-static inline tsalloc_err_t
+static inline ts_err_t
 scache_merge_adj(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *span,
-    span_t                    **dest
+    span_t                    **dest,
+    int32_t                     glob_uid
 ){
     span_t     *lspan;
     span_t     *rspan;
@@ -281,13 +281,13 @@ scache_merge_adj(
     {
         ret = scache_bin_remove(
             arena_cfg, 
-            error_ctx, 
             cache, 
-            lspan
+            lspan,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
     }
@@ -295,13 +295,13 @@ scache_merge_adj(
     {
         ret = scache_bin_remove(
             arena_cfg, 
-            error_ctx, 
             cache, 
-            rspan
+            rspan,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
     }
@@ -336,11 +336,11 @@ scache_merge_adj(
 
     //  cannot fail as paths in pagetrie already exist, objpool will not need to alloc
     (void)pagetrie_insert(
-        nullptr, 
         cache->pagetrie, 
         span->addr, 
         ((void*)span), 
-        span->nbytes
+        span->nbytes,
+        glob_uid
     );
 
     *dest   = span;
@@ -349,31 +349,31 @@ scache_merge_adj(
 }
 
 //  span must be in pagetrie and not in a bin, szclass must be valid
-static inline tsalloc_err_t
+static inline ts_err_t
 scache_cutout_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                     *origin,
     span_t                    **dest,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
-    span_t         *cut;
-    tsalloc_err_t   ret;
+    span_t     *cut;
+    ts_err_t    ret;
 
     //  fails only if objpool cant alloc new span descriptor, assume szclass is valid
     ret = span_split(
         glob_state, 
-        error_ctx, 
         &(cache->spanpool), 
         &origin, 
         &cut, 
-        szclass
+        szclass,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -384,11 +384,11 @@ scache_cutout_span(
 
     //  cannot fail, path in pagetrie already exists since uncut origin was there, no need for objpool to alloc
     (void)pagetrie_insert(
-        nullptr, 
         cache->pagetrie, 
         (void*)cut->addr, 
         (void*)cut, 
-        cut->nbytes
+        cut->nbytes,
+        glob_uid
     );
 
     *dest   = cut;
@@ -397,21 +397,21 @@ scache_cutout_span(
 }
 
 
-tsalloc_err_t
+ts_err_t
 scache_init(
     const glob_alloc_state_t   *global_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     pagetrie_t                 *pagetrie,
     byte_t                     *auxil_mem,
     scache_t                   *cache,
-    uint16_t                    arena_uid
+    uint16_t                    arena_uid,
+    int32_t                     glob_uid
 ){
     if (!auxil_mem)
     {
         set_tsalloc_error(
-            error_ctx,
-            "scache_init::scache.c nullptr axuil_mem argument",
+            glob_uid,
+            "scache_init::scache.c nullptr auxil_mem argument",
             TSALLOC_INVALID_ARGS
         );
         return TSALLOC_INVALID_ARGS;
@@ -436,43 +436,43 @@ scache_init(
         .arena_uid  = arena_uid
     };
 
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
-    ret = mutex_init(error_ctx, &(cache->lock));
+    ret = mutex_init(&(cache->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     ret = objpool_init(
-        error_ctx, 
         &(cache->spanpool), 
         0,                  
         (arena_cfg->unmap_on_termination)
             ? (sizeof(span_t) + sizeof(record_t))
             : sizeof(span_t),
-        64                  
+        64,
+        glob_uid                  
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)mutex_deinit(nullptr, &(cache->lock));
-        append_tsalloc_error_trace(error_ctx);
+        (void)mutex_deinit(&(cache->lock), glob_uid);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     ret = objpool_init(
-        error_ctx, 
         &(cache->slabpool), 
         0,                  
         sizeof(slab_t) + (global_state->nbytes_bitmap),
-        64                  
+        64,
+        glob_uid                  
     );
     if (ret != TSALLOC_SUCCESS)
     {
         objpool_deinit(&(cache->spanpool));
-        (void)mutex_deinit(nullptr, &(cache->lock));
-        append_tsalloc_error_trace(error_ctx);
+        (void)mutex_deinit(&(cache->lock), glob_uid);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -487,20 +487,20 @@ scache_init(
 }
 
 //  no explicit unmap leave cleanup to os (e.g just ram arena) and deinits
-tsalloc_err_t
+ts_err_t
 scache_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t   *cache,
+    int32_t     glob_uid
 ){
     objpool_deinit(&(cache->spanpool));
     objpool_deinit(&(cache->slabpool));
 
-    tsalloc_err_t   ret;
+    ts_err_t    ret;
 
-    ret = mutex_deinit(error_ctx, &(cache->lock));
+    ret = mutex_deinit(&(cache->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -508,16 +508,16 @@ scache_deinit(
 }
 
 //  explicity unmaps all allocated memory (e.g vram arena) and deinits
-tsalloc_err_t
+ts_err_t
 scache_destroy(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t           *cache,
+    int32_t             glob_uid
 ){
     if (!arena_cfg->unmap_on_termination)
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "scache_destroy::scache.c spans missing record instances",
             TSALLOC_INVALID_ARGS
         );
@@ -527,7 +527,7 @@ scache_destroy(
     auxil_unmap_fn  unmap;
     span_t         *span;
     size_t          nbytes;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
 
     ret     = TSALLOC_SUCCESS;
     unmap   = arena_cfg->auxil_unmap;
@@ -540,7 +540,7 @@ scache_destroy(
         if (unmap(arena_cfg->extra, ((void*)span->addr), nbytes) != 0)
         {
             set_tsalloc_error(
-                error_ctx,
+                glob_uid,
                 "scache_destroy::scache.c unmap failure",
                 TSALLOC_AUXIL_UNMAP_ERR
             );
@@ -551,10 +551,10 @@ scache_destroy(
     objpool_deinit(&(cache->spanpool));
     objpool_deinit(&(cache->slabpool));
 
-    ret = mutex_deinit(error_ctx, &(cache->lock));
+    ret = mutex_deinit(&(cache->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
@@ -562,18 +562,18 @@ scache_destroy(
 }
 
 //  warning span must already be in pagetrie
-tsalloc_err_t
+ts_err_t
 scache_put_span(
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
-    span_t                     *span
+    span_t                     *span,
+    int32_t                     glob_uid
 ){
     span_t     *_span;
     ts_err_t    ret;
     
-    if(span->flags.is_slab)
+    if (span->flags.is_slab)
     {
         slab_deinit(&(cache->slabpool), span);
     }
@@ -584,15 +584,15 @@ scache_put_span(
         ret = scache_merge_adj(
             glob_state, 
             arena_cfg, 
-            error_ctx, 
             cache, 
             span, 
-            &_span
+            &_span,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             mutex_unlock(&(cache->lock));
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
         _span->flags.is_alloc   = false;
@@ -603,20 +603,20 @@ scache_put_span(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 scache_get_span(
     const tsalloc_slab_info_t  *slab_init_info,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                    **dest,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
     if ((szclass < 0) || (szclass >= cache->nszclasses))
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "scache_get_span::scache.c invalid size-class",
             TSALLOC_INVALID_ARGS
         );
@@ -626,7 +626,7 @@ scache_get_span(
     span_t         *span;
     bool            isoverfit;
     ts_szclass_t    bin_idx;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
 
     mutex_lock(&(cache->lock));
 
@@ -636,16 +636,16 @@ scache_get_span(
             ret = scache_mint_span(
                 glob_state, 
                 arena_cfg, 
-                error_ctx, 
                 cache, 
                 &span, 
                 &isoverfit, 
-                szclass
+                szclass,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -653,15 +653,15 @@ scache_get_span(
         {
             ret = scache_bin_pop(
                 arena_cfg,
-                error_ctx,
                 cache,
                 &span,
-                bin_idx
+                bin_idx,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -673,18 +673,18 @@ scache_get_span(
             ret = scache_cutout_span(
                 glob_state, 
                 arena_cfg, 
-                error_ctx, 
                 cache, 
                 span, 
                 &cut, 
-                szclass
+                szclass,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 //  only possible failure is that spanpool is out of memory; span, pagetrie are unmutated
                 scache_bin_put(arena_cfg, cache, span);
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
 
@@ -695,16 +695,16 @@ scache_get_span(
         {
             ret = slab_init(
                 slab_init_info, 
-                error_ctx, 
                 &(cache->slabpool), 
-                span
+                span,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 //  only possible failure is that slabpool is out of memory; span, pagetrie are unmutated
                 scache_bin_put(arena_cfg, cache, span);
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -718,16 +718,16 @@ scache_get_span(
 }
 
 //  align must be > pgsize 
-tsalloc_err_t
+ts_err_t
 scache_get_span_aligned(
     const tsalloc_slab_info_t  *slab_init_info,
     const glob_alloc_state_t   *glob_state,
     const arena_cfg_t          *arena_cfg,
-    tsalloc_errctx_t           *error_ctx,
     scache_t                   *cache,
     span_t                    **dest,
     size_t                      align,
-    ts_szclass_t                szclass
+    ts_szclass_t                szclass,
+    int32_t                     glob_uid
 ){
     size_t          req_nbytes;
     ts_szclass_t    req_szclass;
@@ -737,7 +737,7 @@ scache_get_span_aligned(
     if ((req_szclass < 0) || (req_szclass >= cache->nszclasses))
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "scache_get_span::scache.c invalid size-class",
             TSALLOC_INVALID_ARGS
         );
@@ -746,27 +746,27 @@ scache_get_span_aligned(
 
     span_t         *origin;
     ts_szclass_t    bin_idx;
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
 
     mutex_lock(&(cache->lock));
 
-        //  ignore overfit flag as split will be performed regardlesss
+        //  ignore overfit flag as split will be performed regardless
         (void)scache_find_nonempty_bin(cache, &bin_idx, req_szclass);
         if (bin_idx < 0)
         {
             ret = scache_mint_span(
                 glob_state, 
                 arena_cfg, 
-                error_ctx, 
                 cache, 
                 &origin, 
                 nullptr, 
-                req_szclass
+                req_szclass,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -774,15 +774,15 @@ scache_get_span_aligned(
         {
             ret = scache_bin_pop(
                 arena_cfg,
-                error_ctx,
                 cache,
                 &origin,
-                bin_idx
+                bin_idx,
+                glob_uid
             );
             if (ret != TSALLOC_SUCCESS)
             {
                 mutex_unlock(&(cache->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
         }
@@ -793,46 +793,46 @@ scache_get_span_aligned(
 
         ret = span_split_aligned(
             glob_state, 
-            error_ctx, 
             &(cache->spanpool), 
             origin, 
             &span, 
             &lcut, 
             &rcut, 
             align, 
-            szclass
+            szclass,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             mutex_unlock(&(cache->lock));
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
 
         //  cannot fail as paths in pagetrie already exist, objpool will not need to alloc
         (void)pagetrie_insert(
-            nullptr, 
             cache->pagetrie, 
             ((void*)span->addr), 
             span, 
-            span->nbytes
+            span->nbytes,
+            glob_uid
         );
         (void)pagetrie_insert(
-            nullptr, 
             cache->pagetrie, 
             ((void*)rcut->addr), 
             rcut, 
-            rcut->nbytes
+            rcut->nbytes,
+            glob_uid
         );
         scache_bin_put(arena_cfg, cache, rcut);
         if (lcut)
         {
             (void)pagetrie_insert(
-                nullptr, 
                 cache->pagetrie, 
                 ((void*)lcut->addr), 
                 lcut, 
-                lcut->nbytes
+                lcut->nbytes,
+                glob_uid
             );
             scache_bin_put(arena_cfg, cache, lcut);
         }
@@ -846,14 +846,14 @@ scache_get_span_aligned(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 scache_decay(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    scache_t           *cache
+    scache_t           *cache,
+    int32_t             glob_uid
 ){
-    tsalloc_err_t   ret1;
-    tsalloc_err_t   ret2;
+    ts_err_t        ret1;
+    ts_err_t        ret2;
     ts_szclass_t    nszclasses;
 
     ret2       = TSALLOC_SUCCESS;
@@ -865,13 +865,13 @@ scache_decay(
         {
             ret1 = bin_decay(
                 arena_cfg,
-                error_ctx,
-                &(cache->bins[i])
+                &(cache->bins[i]),
+                glob_uid
             );
 
             if (ret1 != TSALLOC_SUCCESS)
             {
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 ret2 = ret1;
             }
         }

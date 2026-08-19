@@ -1,5 +1,4 @@
 
-
 #include    "internal/common.h"
 #include    "internal/error.h"
 #include    "internal/pagetrie.h"
@@ -64,43 +63,43 @@ pagetrie_rollback(
 }
 
 
-tsalloc_err_t
+ts_err_t
 pagetrie_init(
-    tsalloc_errctx_t   *error_ctx,
-    pagetrie_t         *pagetrie
+    pagetrie_t   *pagetrie,
+    int32_t       glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
-    ret = mutex_init(error_ctx, &(pagetrie->lock)); 
+    ret = mutex_init(&(pagetrie->lock), glob_uid); 
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     ret = objpool_init
     (
-        error_ctx,
         ((objpool_t*)(&pagetrie->nodepool)),
         8,
         sizeof(node_t),
-        256
+        256,
+        glob_uid
     );
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)mutex_deinit(error_ctx, &(pagetrie->lock));
-        append_tsalloc_error_trace(error_ctx);
+        (void)mutex_deinit(&(pagetrie->lock), glob_uid);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     node_t *root;
 
-    ret     = objpool_alloc(error_ctx, ((objpool_t*)(&pagetrie->nodepool)), ((void*)&root));
+    ret     = objpool_alloc(((objpool_t*)(&pagetrie->nodepool)), ((void*)&root), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        (void)mutex_deinit(error_ctx, &(pagetrie->lock));
+        (void)mutex_deinit(&(pagetrie->lock), glob_uid);
         objpool_deinit(&(pagetrie->nodepool));
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
     memset(root, 0, sizeof(node_t));
@@ -110,31 +109,31 @@ pagetrie_init(
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 pagetrie_deinit(
-    tsalloc_errctx_t   *error_ctx,
-    pagetrie_t         *pagetrie
+    pagetrie_t   *pagetrie,
+    int32_t       glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     objpool_deinit(((objpool_t*)(&pagetrie->nodepool)));
-    ret = mutex_deinit(error_ctx, &(pagetrie->lock));
+    ret = mutex_deinit(&(pagetrie->lock), glob_uid);
     if (ret != TSALLOC_SUCCESS)
     {
-        append_tsalloc_error_trace(error_ctx);
+        append_tsalloc_error_trace(glob_uid);
         return ret;
     }
 
     return TSALLOC_SUCCESS;
 }
 
-tsalloc_err_t
+ts_err_t
 pagetrie_insert(
-    tsalloc_errctx_t   *error_ctx,
     pagetrie_t         *pagetrie,
     const void         *key,
     const void         *data,
-    size_t              nbytes
+    size_t              nbytes,
+    int32_t              glob_uid
 ){
     if (nbytes == 0)                                                 
     {
@@ -148,7 +147,7 @@ pagetrie_insert(
     node_t         *root;
     uintptr_t       start_page;                                       
     uintptr_t       last_page;                                        
-    tsalloc_err_t   ret;
+    ts_err_t        ret;
 
     start_page  = ((uintptr_t)key) >> MIN_PAGE_SHIFT;                  
     last_page   = (((uintptr_t)key) + nbytes - 1) >> MIN_PAGE_SHIFT;   
@@ -172,7 +171,7 @@ pagetrie_insert(
         node1   = atomic_load_explicit(&root->child[idx1], memory_order_relaxed);
         if (!node1)
         {
-            ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
+            ret = objpool_alloc((objpool_t*)(&pagetrie->nodepool), ((void*)&node), glob_uid);
             if (ret != TSALLOC_SUCCESS)
             {   
                 pagetrie_rollback(
@@ -182,7 +181,7 @@ pagetrie_insert(
                     page_addr
                 );
                 mutex_unlock(&(pagetrie->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
             memset(node, 0, sizeof(node_t));
@@ -194,7 +193,7 @@ pagetrie_insert(
         node2   = atomic_load_explicit(&node1->child[idx2], memory_order_relaxed); 
         if (!node2)
         {
-            ret = objpool_alloc(error_ctx, (objpool_t*)(&pagetrie->nodepool), ((void*)&node));
+            ret = objpool_alloc((objpool_t*)(&pagetrie->nodepool), ((void*)&node), glob_uid);
             if (ret != TSALLOC_SUCCESS)
             {
                 pagetrie_rollback(
@@ -204,7 +203,7 @@ pagetrie_insert(
                     page_addr
                 );
                 mutex_unlock(&(pagetrie->lock));
-                append_tsalloc_error_trace(error_ctx);
+                append_tsalloc_error_trace(glob_uid);
                 return ret;
             }
             memset(node, 0, sizeof(node_t));

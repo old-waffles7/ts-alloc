@@ -1,3 +1,4 @@
+
 /*
  * @file    error.h
  * @brief   error-reporting subsystem for tracking and bubbling failures
@@ -14,13 +15,12 @@
 #include    "os.h"
 
 
-#define     SIZE_TRACE_BUFFER   512
+#define     TSALLOC_NO_ERROR_CONTEXT    (-1)
 
 
 #ifndef     TSALLOC_ERROR_DEFINED
 #define     TSALLOC_ERROR_DEFINED
 
-    //  expose this later (to arena header instead of malloc header)
     /*
     * @enum    TSALLOC_ERROR
     * @brief   status codes representing the outcome of allocator operations
@@ -34,91 +34,74 @@
         TSALLOC_AUXIL_UNMAP_ERR,    ///< auxilliary allocator could not free memory
         TSALLOC_AUXIL_MADVISE_ERR,  ///< auxilliary madvise could not implement flag
         TSALLOC_INVALID_ARGS        ///< invalid arguments passed as parameters
+    }; 
+    typedef enum TSALLOC_ERROR  ts_err_t;
+    
+    
+    struct ts_error_state
+    {
+        const char *trace;              ///< set only if TSALLOC is compiled with OPT_TRACE_ERRORS enabled
+        const char *message;            ///< error message set by TSALLOC
+        int         os_error_code;      ///< error code set by OS
+        ts_err_t    ts_error_code;      ///< error code set by TSALLOC
     };
+    typedef struct ts_error_state   ts_errstate_t;
 
 #endif      //TSALLOC_ERROR_DEFINED
 
-typedef enum TSALLOC_ERROR  tsalloc_err_t;
-typedef enum TSALLOC_ERROR  ts_err_t;
+
+typedef struct tsalloc_global_arena glob_t; 
 
 
-struct tsalloc_error_ctx
-{
-    #ifdef  OPT_TRACE_ERRORS    // CMake option
-        char    trace[512]; 
-    #endif
+void 
+_ts_req_errstate(
+    ts_errstate_t  *state,
+    int32_t         glob_uid
+);
 
-    const char     *orig_filename;
-    const char     *message;
-    int             os_error_code;
-    uint16_t        orig_line;
-    tsalloc_err_t   error_code;
-};
-
-typedef struct tsalloc_error_ctx    tsalloc_errctx_t;
-typedef struct tsalloc_error_ctx    ts_errctx_t;
-
-
-static inline void 
+void 
 _set_tsalloc_error(
-    tsalloc_errctx_t   *ctx,
-    const char         *orig_filename,
-    const char         *message,
-    int                 os_error_code,
-    uint16_t            orig_line,
-    tsalloc_err_t       tsalloc_error_code
-){
-    if (!ctx)
-    {
-        return;
-    }
-
-    ctx->orig_filename  = orig_filename;
-    ctx->message        = message;
-    ctx->os_error_code  = os_error_code;
-    ctx->orig_line      = orig_line;
-    ctx->error_code     = tsalloc_error_code;
-
-    #ifdef OPT_TRACE_ERRORS
-    {    
-        ctx->trace[0] = '\0';
-    }
-    #endif
-}
+    const char *orig_filename,
+    const char *message,
+    int32_t     glob_uid,
+    int         os_error_code,
+    ts_err_t    ts_error_code,
+    uint16_t    orig_line
+);
 
 
 #define _SET_TSALLOC_ERROR_IMPLICIT_OS( \
-    error_ctx_ptr,                      \
+    glob_uid,                           \
     message,                            \
-    tsalloc_error_code                  \
+    ts_error_code                       \
 ) do                                    \
 {                                       \
     _set_tsalloc_error                  \
     (                                   \
-        (error_ctx_ptr),                \
         __FILE__,                       \
         (message),                      \
+        (glob_uid),                     \
         sys_error_code(),               \
-        __LINE__,                       \
-        (tsalloc_error_code)            \
+        (ts_error_code),                \
+        __LINE__                        \
     );                                  \
 } while (false)
 
 #define _SET_TSALLOC_ERROR_EXPLICIT_OS( \
-    error_ctx_ptr,                      \
+    glob_uid,                           \
     message,                            \
-    tsalloc_error_code,                 \
+    ts_error_code,                      \
     os_error_code                       \
 ) do                                    \
 {                                       \
     _set_tsalloc_error                  \
     (                                   \
-        (error_ctx_ptr),                \
         __FILE__,                       \
         (message),                      \
-        os_error_code,                  \
-        __LINE__,                       \
-        (tsalloc_error_code)            \
+        (glob_uid),                     \
+        (os_error_code),                \
+        (ts_error_code),                \
+        __LINE__                        \
     );                                  \
 } while (false)
 
@@ -136,11 +119,11 @@ _set_tsalloc_error(
  * 
  * evaluates to a safe `do-while(false)` block. mutates the context's pinned error struct in-place
  * 
- * @param   error_ctx_ptr       pointer to `tsalloc_errctx_t` instance of interest
- * @param   message             static string literal detailing what broke
- * @param   tsalloc_error_code  `tsalloc_err_t` value representing reason of failure
- * @param   os_error_code       [optional argument] `int` error-code generated by os pertaining to
- *                              reason of failure
+ * @param   glob_uid        global uid of corresponding `glob_t` instance
+ * @param   message         constant string literal detailing what broke
+ * @param   ts_error_code  `ts_err_t` value representing reason of failure
+ * @param   os_error_code   [optional argument] `int` error-code generated by os pertaining to
+ *                          reason of failure
  * 
  * @warning must be called precisely when the initial error occurs, not during bubbling
  */
@@ -152,40 +135,14 @@ _set_tsalloc_error(
     ) (__VA_ARGS__)
 
 
-//  conditionally enable robust stack-tracing
-#ifdef  OPT_TRACE_ERRORS
+#ifdef      OPT_TRACE_ERRORS
 
-    #include    <string.h>
-    #include    <stdio.h>
-
-    static inline void 
+    void 
     _append_tsalloc_error_trace(
-        tsalloc_errctx_t   *ctx,
-        const char         *orig_filename,
-        const char         *orig_function
-    ){
-        if (!ctx)
-        {
-            return;
-        }
-
-        size_t  nbytes_used;
-        size_t  nbytes_free;
-
-        nbytes_used = strnlen(ctx->trace, SIZE_TRACE_BUFFER);
-        nbytes_free = SIZE_TRACE_BUFFER - nbytes_used;
-        if (nbytes_free > 5)
-        {
-            snprintf
-            (
-                ctx->trace + nbytes_used,
-                nbytes_free,
-                "<--%s()::%s ",
-                orig_function,
-                orig_filename
-            );
-        }
-    }
+        const char *orig_filename,
+        const char *orig_function,
+        int32_t     glob_uid
+    );
 
     /**
      * @brief   appends the current function to the error breadcrumb trail
@@ -193,24 +150,25 @@ _set_tsalloc_error(
      * used exclusively when bubbling an existing error upward. safely writes to the internal trace 
      * buffer without dynamic allocation
      * 
-     * @param   error_ctx_ptr pointer to `tsalloc_errctx_t` instance of interest
+     * @param   glob_uid    global uid of corresponding `glob_t` instance
      */
     #define append_tsalloc_error_trace(     \
-        error_ctx_ptr                       \
+        glob_uid                            \
     ) do                                    \
     {                                       \
         _append_tsalloc_error_trace         \
         (                                   \
-            (error_ctx_ptr),                \
             __FILE__,                       \
-            __func__                        \
+            __func__,                       \
+            glob_uid                        \
         );                                  \
     } while (false)
 #else
     #define append_tsalloc_error_trace(     \
-        error_ctx_ptr                       \
+        glob_uid                            \
     ) ((void)0)
-#endif  // TRACE_ERRORS
+    
+#endif      // TRACE_ERRORS
 
 
-#endif  // INTERNALERR_H
+#endif  // ERROR_H

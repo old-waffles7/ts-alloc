@@ -21,7 +21,7 @@ static inline bool
 ledger_isempty(
     ledger_t   *ledger
 ){
-    return !ledger->head;
+    return (ledger->head == nullptr);
 }
 
 void 

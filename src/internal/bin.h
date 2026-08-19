@@ -86,16 +86,19 @@ bin_first_nonempty_bucket(
 /**
  * @brief   removes and returns a span from the first non-empty bucket
  *
- * @param   bin pointer to the bin from which to retrieve the span
+ * @param   arena_cfg   pointer to the arena configuration
+ * @param   dest        pointer to store the retrieved span
+ * @param   bin         pointer to the bin from which to retrieve the span
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
- * @return  pointer to the retrieved span, or `nullptr` if the bin is empty
+ * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bin_get_span(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     span_t            **dest,
-    bin_t              *bin
+    bin_t              *bin,
+    int32_t             glob_uid
 ){
     int8_t  idx;
 
@@ -111,19 +114,19 @@ bin_get_span(
     span    = bucket_pop(&(bin->buckets[idx]));
     if (idx == TSALLOC_SPAN_RETAINED)
     {
-        tsalloc_err_t   ret;
+        ts_err_t   ret;
 
         ret = span_set_state(
-            arena_cfg, 
-            error_ctx, 
-            span, 
-            TSALLOC_SPAN_UNRETAINED
+            arena_cfg,
+            span,
+            TSALLOC_SPAN_UNRETAINED,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             bucket_insert(&(bin->buckets[idx]), span);
-            append_tsalloc_error_trace(error_ctx);
-            return TSALLOC_AUXIL_MADVISE_ERR;
+            append_tsalloc_error_trace(glob_uid);
+            return ret;
         }
     }
 
@@ -146,20 +149,20 @@ bin_get_span(
  * @brief   inserts a span into the appropriate bucket in the bin
  *
  * @param   arena_cfg   pointer to the arena configuration struct
- * @param   error_ctx   pointer to the error context struct
  * @param   bin         pointer to the bin receiving the span
  * @param   span        pointer to the span being inserted
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bin_put_span(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     bin_t              *bin,
-    span_t             *span
+    span_t             *span,
+    int32_t             glob_uid
 ){
-    tsalloc_err_t   ret;
+    ts_err_t   ret;
 
     if (span->flags.state == TSALLOC_SPAN_RETAINED)
     {
@@ -170,13 +173,13 @@ bin_put_span(
     {
         ret = span_set_state(
             arena_cfg,
-            error_ctx,
             span,
-            TSALLOC_SPAN_DIRTY
+            TSALLOC_SPAN_DIRTY,
+            glob_uid
         );
-        if (ret == TSALLOC_AUXIL_MADVISE_ERR)
+        if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
         bucket_insert(&(bin->buckets[TSALLOC_SPAN_DIRTY]), span);
@@ -190,15 +193,17 @@ bin_put_span(
 /**
  * @brief   removes a span from its current state bucket
  *
- * @param   bin     pointer to the bin containing the span
- * @param   span    pointer to the span being removed
+ * @param   arena_cfg   pointer to the arena configuration
+ * @param   bin         pointer to the bin containing the span
+ * @param   span        pointer to the span being removed
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bin_remove_span(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
     bin_t              *bin,
-    span_t             *span
+    span_t             *span,
+    int32_t             glob_uid
 ){
     tsalloc_span_state_t    state;
 
@@ -207,19 +212,19 @@ bin_remove_span(
 
     if (state == TSALLOC_SPAN_RETAINED)
     {
-        tsalloc_err_t   ret;
+        ts_err_t   ret;
 
         ret = span_set_state(
-            arena_cfg, 
-            error_ctx, 
-            span, 
-            TSALLOC_SPAN_UNRETAINED
+            arena_cfg,
+            span,
+            TSALLOC_SPAN_UNRETAINED,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
             bucket_insert(&(bin->buckets[state]), span);
-            append_tsalloc_error_trace(error_ctx);
-            return TSALLOC_AUXIL_MADVISE_ERR;
+            append_tsalloc_error_trace(glob_uid);
+            return ret;
         }
     }
 
@@ -236,16 +241,16 @@ bin_remove_span(
  * @brief   decays free spans in the bin by marking them as retained
  *
  * @param   arena_cfg   pointer to the arena configuration struct
- * @param   error_ctx   pointer to the error context struct
  * @param   bin         pointer to the bin being decayed
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  *
  * @return  status code representing success or failure
  */
-static inline tsalloc_err_t
+static inline ts_err_t
 bin_decay(
     const arena_cfg_t  *arena_cfg,
-    tsalloc_errctx_t   *error_ctx,
-    bin_t              *bin
+    bin_t              *bin,
+    int32_t             glob_uid
 ){
     if (!arena_cfg->auxil_madvise)
     {
@@ -254,7 +259,7 @@ bin_decay(
 
     span_t             *span;
     auxil_madvise_fn    auxil_madvise;
-    tsalloc_err_t       ret1, ret2;
+    ts_err_t            ret1, ret2;
     uint32_t            nspans_decay;
 
     auxil_madvise   = arena_cfg->auxil_madvise;
@@ -270,10 +275,10 @@ bin_decay(
         
         //  cannot fail as loop breaks if only spans left are retained
         (void)bin_get_span(
-            arena_cfg, 
-            error_ctx, 
-            &span, 
-            bin
+            arena_cfg,
+            &span,
+            bin,
+            glob_uid
         );
         if (!span)
         {
@@ -282,23 +287,23 @@ bin_decay(
 
         ret1    = span_set_state(
             arena_cfg,
-            error_ctx,
             span,
-            TSALLOC_SPAN_RETAINED
+            TSALLOC_SPAN_RETAINED,
+            glob_uid
         );
         if (ret1 != TSALLOC_SUCCESS)
         {
             bin->epoch_min_nspans   = bin->nspans;
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret1;
         }
 
         //  spans with retained state cannot trigger failure of this function
         (void)bin_put_span(
             arena_cfg,
-            error_ctx, 
-            bin, 
-            span
+            bin,
+            span,
+            glob_uid
         );
     }
     bin->epoch_min_nspans   = bin->nspans; 

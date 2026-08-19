@@ -1,3 +1,4 @@
+
 /*
  * @file    objpool.h
  * @brief   fixed-size object pool implemented using an intrusive free list
@@ -38,21 +39,21 @@ struct iobjpool_block
 /*
  * @brief   initializes a new object pool
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   objpool     pointer to the object pool to initialize
  * @param   align       memory alignment requirement (must be power of 2), defaults to 8 on 0
  * @param   nbytes_obj  size of the object in bytes
  * @param   nobjs_chunk minimum number of objects to allocate per chunk, defaults to 256 on 0
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 objpool_init(
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *objpool,
-    size_t              align,
-    size_t              nbytes_obj,
-    size_t              nobjs_chunk
+    objpool_t  *objpool,
+    size_t      align,
+    size_t      nbytes_obj,
+    size_t      nobjs_chunk,
+    int32_t     glob_uid
 );
 
 /*
@@ -68,17 +69,17 @@ objpool_deinit(
 /*
  * @brief   allocates a single object from the pool
  * 
- * @param   error_ctx   pointer to the error context struct
  * @param   objpool     pointer to the object pool
  * @param   dest        pointer to store the allocated memory address
+ * @param   glob_uid    global uid of corresponding `glob_t` instance
  * 
  * @return  status code representing success or failure
  */
-tsalloc_err_t
+ts_err_t
 objpool_alloc(
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *objpool,
-    void              **dest
+    objpool_t  *objpool,
+    void      **dest,
+    int32_t     glob_uid
 );
 
 /*

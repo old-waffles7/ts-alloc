@@ -18,12 +18,12 @@ struct chunk
 
 typedef struct chunk    chunk_t;
 
-static tsalloc_err_t
+static ts_err_t
 chunk_create(
-    tsalloc_errctx_t   *error_ctx,
-    chunk_t           **dest,
-    size_t              align,
-    size_t              nbytes
+    chunk_t   **dest,
+    size_t      align,
+    size_t      nbytes,
+    int32_t     glob_uid
 ){
     void   *raw;
 
@@ -40,7 +40,7 @@ chunk_create(
     {
         set_tsalloc_error
         (
-            error_ctx,
+            glob_uid,
             "chunk_create()::objpool.c os allocation error",
             TSALLOC_OS_ERR
         );
@@ -78,19 +78,19 @@ chunk_destroy(
 typedef struct iobjpool_block   slab_t;
 
 
-tsalloc_err_t
+ts_err_t
 objpool_init(
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *objpool,
-    size_t              align,
-    size_t              nbytes_obj,
-    size_t              nobjs_chunk
+    objpool_t   *objpool,
+    size_t       align,
+    size_t       nbytes_obj,
+    size_t       nobjs_chunk,
+    int32_t      glob_uid
 ){
     if (!objpool)
     {
         set_tsalloc_error
         (
-            error_ctx,
+            glob_uid,
             "objpool_init::objpool.c invalid argument: nullptr objpool",
             TSALLOC_INVALID_ARGS
         );
@@ -104,7 +104,7 @@ objpool_init(
     {
         set_tsalloc_error
         (
-            error_ctx,
+            glob_uid,
             "objpool_init::objpool.c invalid argument: align must be power of 2",
             TSALLOC_INVALID_ARGS
         );
@@ -122,7 +122,7 @@ objpool_init(
     if (nobjs_chunk > ((SIZE_MAX - chunk_desc_offset) / nbytes_slab))
     {
         set_tsalloc_error(
-            error_ctx,
+            glob_uid,
             "objpool_init::objpool.c chunk size overflow",
             TSALLOC_INVALID_ARGS
         );
@@ -172,11 +172,11 @@ objpool_deinit(
     }
 }
 
-tsalloc_err_t
+ts_err_t
 objpool_alloc(
-    tsalloc_errctx_t   *error_ctx,
-    objpool_t          *objpool,
-    void              **dest
+    objpool_t   *objpool,
+    void       **dest,
+    int32_t      glob_uid
 ){
     if (objpool->slab_stack)
     {
@@ -191,17 +191,17 @@ objpool_alloc(
     chunk   = ((chunk_t*)objpool->chunk_stack);
     if ((!chunk) || (chunk->nbytes_free < objpool->nbytes_slab))
     {
-        tsalloc_err_t   ret;
+        ts_err_t   ret;
         ret = chunk_create
         (
-            error_ctx, 
             &chunk,
             objpool->align,
-            objpool->nbytes_chunk
+            objpool->nbytes_chunk,
+            glob_uid
         );
         if (ret != TSALLOC_SUCCESS)
         {
-            append_tsalloc_error_trace(error_ctx);
+            append_tsalloc_error_trace(glob_uid);
             return ret;
         }
 
