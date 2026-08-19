@@ -2,10 +2,6 @@ compile_commands.json
 .clangd
 build/*
 !build/.gitkeep
-recompile_lib.sh
-advanced
-quickstart
-lobtsalloc.so
 .cache/*
 examples/*
 !examples/quickstart.c
