@@ -17,7 +17,7 @@ extern "C"
 
 #include    <stddef.h>
 #include    <stdint.h>
-#include    <stdio.h>
+#include    <stdio.h> 
 
 #include    <cuda.h>
 
@@ -439,6 +439,7 @@ int main(void)
 
     //  allocate memory for vectors
     {
+        //  from gpu
         ret = tsalloc(allocator_cu, (void**)&a, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
@@ -464,6 +465,7 @@ int main(void)
             return -1;
         }
 
+        //  from host
         ret = tsalloc(allocator_host, (void**)&h_a, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
