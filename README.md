@@ -18,12 +18,11 @@ The project uses CMake and requires a C compiler supporting C11/C23 extensions.
 
 ```bash
     git clone https://github.com/old-waffles7/ts-alloc
-    cd tsalloc
+    cd ts-alloc
     python3 src/config/config.py -h
     python3 src/config/config.py --default
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DVERBOSE_TRACE=[ON/OFF]
-    cmake --build .
+    cmake -DCMAKE_BUILD_TYPE=Release -S . -B build -DVERBOSE_TRACE=[ON/OFF]
+    cmake --build build
 ```
 
 ##  License
