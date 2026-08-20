@@ -75,16 +75,16 @@ thread_work(
     
     //  these allocations are small enough to come from tcache since `allocator` was initialized  
     //  using `TSALLOC_DEFAULT_ARG` as the configuration
-    ret = tsalloc(allocator, ((void**)&a), sizeof(int32_t));
+    ret = tsalloc(allocator, &a, sizeof(int32_t));
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf("thread: %lu allocated 4 bytes from tcache to address: %lx\n", t_uid, ((uintptr_t)a));
     
-    ret = tsalloc(allocator, ((void**)&b), sizeof(int32_t));
+    ret = tsalloc(allocator, &b, sizeof(int32_t));
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf("thread: %lu allocated 4 bytes from tcache to address: %lx\n", t_uid, ((uintptr_t)b));
 
     //  this tcache allocation will be freed back to tcache
-    ret = tsfree(allocator, ((void*)a));
+    ret = tsfree(allocator, a);
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf("thread: %lu released 4 bytes from tcache back to tcache\n", t_uid);
 
@@ -96,20 +96,20 @@ thread_work(
 
 
     //  this tcache allocation will be freed directly to a global arena
-    ret = tsfree(allocator, ((void*)b));
+    ret = tsfree(allocator, b);
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf("thread: %lu released 4 bytes from tcache to a global arena\n", t_uid);
 
     //  this allocation will come directly from a global arena since this threads tcache has been 
     //  disabled
-    ret = tsalloc(allocator, ((void**)&A), sizeof(int32_t));
+    ret = tsalloc(allocator, &A, sizeof(int32_t));
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf(
         "thread: %lu allocated 4 bytes from global arena to address: %lx\n", 
         t_uid, ((uintptr_t)A)
     );
 
-    ret = tsalloc(allocator, ((void**)&B), sizeof(int32_t));
+    ret = tsalloc(allocator, &B, sizeof(int32_t));
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf(
         "thread: %lu allocated 4 bytes from global arena to address: %lx\n", 
@@ -117,7 +117,7 @@ thread_work(
     );
 
     //  this global arena allocation will be freed back to a global arena
-    ret = tsfree(allocator, ((void*)A));
+    ret = tsfree(allocator, A);
     if (ret != TSALLOC_SUCCESS)goto failure;
     printf("thread: %lu released 4 bytes from a global arena back to the global arena\n", t_uid);
 
