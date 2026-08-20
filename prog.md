@@ -2,13 +2,6 @@
 ## todo
 *   add -fno-strict-aliasing to cmake bc of the casting
 *   fix tcache_info in the config script.... rename to tcache_capacity or something
-*   make the error logging thread safe. maybe declare the macro auxilliarty functions
-    then define in error.c. in error.c declare the thread local. alternatively add
-    parameter to init function on how many error contexts there are. then in glob_t
-    add a struct that contains n-many error context structs and n mnay atomic booleans
-    specifying if it has been written to already. add a function to get error state of 
-    a given thread and once it does, clears that associated context. also function to get
-    how many contexts are left and have context store pthread_t id.
 *   remove default_span_size field for glob_alloc_state_t in config
 *   replace tsalloc(), tsfee() with macros that call _tsalloc, _tsfree to avoid casting
     errors

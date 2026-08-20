@@ -153,6 +153,22 @@
 typedef struct tsalloc_global_arena tsalloctr_t;
 
 
+ts_err_t
+_tsalloc(
+    tsalloctr_t    *tsalloctr,
+    void          **dest,
+    size_t          nbytes
+);
+
+ts_err_t
+_tsalloc_aligned(
+    tsalloctr_t    *tsalloctr,
+    void          **dest,
+    size_t          nbytes,
+    size_t          align
+);
+
+
 /**
  *  @brief  creates a new allocator, instance of `tsalloctr_t`
  *
@@ -190,12 +206,16 @@ tsalloc_destroy(
  *  
  *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
 */
-ts_err_t
-tsalloc(
-    tsalloctr_t    *tsalloctr,
-    void          **dest,
-    size_t          nbytes
-);
+#define tsalloc(            \
+        tsalloctr,          \
+        dest,               \
+        nbytes              \
+    )                       \
+    _tsalloc(               \
+        (tsalloctr),        \
+        ((void**)dest),     \
+        (nbytes)            \
+    )
 
 /**
  *  @brief  allocates a block of memory aligned to a specific boundary
@@ -207,13 +227,18 @@ tsalloc(
  *  
  *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
 */
-ts_err_t
-tsalloc_aligned(
-    tsalloctr_t    *tsalloctr,
-    void          **dest,
-    size_t          nbytes,
-    size_t          align
-);
+#define tsalloc_aligned(    \
+        tsalloctr,          \
+        dest,               \
+        nbytes,             \
+        align               \
+    )                       \
+    _tsalloc_aligned(       \
+        (tsalloctr),        \
+        ((void**)dest),     \
+        (nbytes),           \
+        (align)             \
+    )
 
 /**
  *  @brief  frees a previously allocated block of memory
@@ -228,6 +253,7 @@ tsfree(
     tsalloctr_t    *tsalloctr,
     void           *addr
 );
+
 
 /**
  *  @brief  calculates the size class for a given allocation request

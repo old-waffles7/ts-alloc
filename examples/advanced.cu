@@ -440,7 +440,7 @@ int main(void)
     //  allocate memory for vectors
     {
         //  from gpu
-        ret = tsalloc(allocator_cu, (void**)&a, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_cu, &a, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_cu);
@@ -448,7 +448,7 @@ int main(void)
             (void)tsalloc_destroy(allocator_host);
             return -1;
         }
-        ret = tsalloc(allocator_cu, (void**)&b, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_cu, &b, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_cu);
@@ -456,7 +456,7 @@ int main(void)
             (void)tsalloc_destroy(allocator_host);
             return -1;
         }
-        ret = tsalloc(allocator_cu, (void**)&c, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_cu, &c, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_cu);
@@ -466,7 +466,7 @@ int main(void)
         }
 
         //  from host
-        ret = tsalloc(allocator_host, (void**)&h_a, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_host, &h_a, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_host);
@@ -474,7 +474,7 @@ int main(void)
             (void)tsalloc_destroy(allocator_host);
             return -1;
         }
-        ret = tsalloc(allocator_host, (void**)&h_b, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_host, &h_b, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_host);
@@ -482,7 +482,7 @@ int main(void)
             (void)tsalloc_destroy(allocator_host);
             return -1;
         }
-        ret = tsalloc(allocator_host, (void**)&h_c, sizeof(uint32_t)*N_ELEMENTS);
+        ret = tsalloc(allocator_host, &h_c, sizeof(uint32_t)*N_ELEMENTS);
         if (ret != TSALLOC_SUCCESS)
         {
             print_error(allocator_host);
@@ -526,8 +526,36 @@ int main(void)
     }
 
 
+    //  free RAM backed (host) allocations
+    ret = tsfree(allocator_host, h_a);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        print_error(allocator_host);
+        (void)tsalloc_destroy(allocator_cu);
+        (void)tsalloc_destroy(allocator_host);
+        return -1;
+    }
+    ret = tsfree(allocator_host, h_b);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        print_error(allocator_host);
+        (void)tsalloc_destroy(allocator_cu);
+        (void)tsalloc_destroy(allocator_host);
+        return -1;
+    }
+    ret = tsfree(allocator_host, h_c);
+    if (ret != TSALLOC_SUCCESS)
+    {
+        print_error(allocator_host);
+        (void)tsalloc_destroy(allocator_cu);
+        (void)tsalloc_destroy(allocator_host);
+        return -1;
+    }
+
+
     //  our arena configuration set `unmap_on_termination1 to true. so, unless we actually need to
-    //  recycle memory, we can skip frees and just destroy our allocator
+    //  recycle memory during the lifetime of our program, we can skip frees and just destroy our 
+    //  allocator
     ret = tsalloc_destroy(allocator_cu);
     if (ret != TSALLOC_SUCCESS)
     {
