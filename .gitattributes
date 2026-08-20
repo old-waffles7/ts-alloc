@@ -1,1 +1,1 @@
-*.cu linguist-language=CUDA linguist-detectable=true
+examples/*.cu linguist-language=CUDA linguist-detectable=true linguist-documentation=false
