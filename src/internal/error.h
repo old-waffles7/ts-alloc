@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    error.h
  * @brief   error-reporting subsystem for tracking and bubbling failures
  */

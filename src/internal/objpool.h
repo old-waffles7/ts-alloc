@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    objpool.h
  * @brief   fixed-size object pool implemented using an intrusive free list
  */
@@ -15,7 +15,7 @@
 #include    "error.h"
 
 
-/*
+/**
  * @struct  iobjpool
  * @brief   fixed-size intrusive object pool
  */
@@ -36,7 +36,7 @@ struct iobjpool_block
 };
 
 
-/*
+/**
  * @brief   initializes a new object pool
  * 
  * @param   objpool     pointer to the object pool to initialize
@@ -56,7 +56,7 @@ objpool_init(
     int32_t     glob_uid
 );
 
-/*
+/**
  * @brief   destroys an object pool and frees all associated chunks
  * 
  * @param   objpool     pointer to the object pool to deinitialize
@@ -66,7 +66,7 @@ objpool_deinit(
     objpool_t  *objpool
 );
 
-/*
+/**
  * @brief   allocates a single object from the pool
  * 
  * @param   objpool     pointer to the object pool
@@ -82,7 +82,7 @@ objpool_alloc(
     int32_t     glob_uid
 );
 
-/*
+/**
  * @brief   returns an object to the pool's free list
  * 
  * @param   objpool     pointer to the object pool

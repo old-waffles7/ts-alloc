@@ -1,4 +1,6 @@
 
+/*  tsalloc.h   */
+
 #pragma once
 #ifndef TSALLOC_H
 #define TSALLOC_H
@@ -143,25 +145,51 @@
 #endif      //TSALLOC_ARENACONFIG_DEFINED
 
 
-/*
+/**
  * @struct  tsalloc_global_arena
  * @brief   thread-global tsalloc memory allocator; manages thread-local caches and thread safe 
             memory arenas
  */
 typedef struct tsalloc_global_arena tsalloctr_t;
 
-//  passing TSALLOC_DEFAULT_ARG as parameter for @p arena_cfg configures conventional memory allocator ram.
+
+/**
+ *  @brief  creates a new allocator, instance of `tsalloctr_t`
+ *
+ *  @param  arena_cfg   pointer to the an instance of the arena configuration struct, 
+ *                      `ts_arena_cfg_t`, that determines implementation and behavior of allocator;
+ *                      arguing `TSALLOC_DEFAULT_ARG` configures a conventional RAM-backed allocator
+ *  @param  dest        pointer to destination for address of created allocator
+ *  
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t
 tsalloc_create(
     const ts_arena_cfg_t  *arena_cfg,
-    tsalloctr_t           **dest
+    tsalloctr_t          **dest
 );
 
+/**
+ *  @brief  destroys an allocator
+ *
+ *  @param  tsalloctr   pointer to allocator to destroy
+ *
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t
 tsalloc_destroy(
     tsalloctr_t    *tsalloctr
 );
 
+/**
+ *  @brief  allocates a block of memory
+ *
+ *  @param  tsalloctr   pointer to the allocator instance to use
+ *  @param  dest        pointer to destination for the allocated memory address
+ *  @param  nbytes      number of bytes to allocate
+ *  
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t
 tsalloc(
     tsalloctr_t    *tsalloctr,
@@ -169,6 +197,16 @@ tsalloc(
     size_t          nbytes
 );
 
+/**
+ *  @brief  allocates a block of memory aligned to a specific boundary
+ *
+ *  @param  tsalloctr   pointer to the allocator instance to use
+ *  @param  dest        pointer to destination for the allocated memory address
+ *  @param  nbytes      number of bytes to allocate
+ *  @param  align       alignment of the allocated memory (must be a power of two)
+ *  
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t
 tsalloc_aligned(
     tsalloctr_t    *tsalloctr,
@@ -177,28 +215,62 @@ tsalloc_aligned(
     size_t          align
 );
 
+/**
+ *  @brief  frees a previously allocated block of memory
+ *
+ *  @param  tsalloctr   pointer to the allocator instance that owns the memory
+ *  @param  addr        pointer to the memory block to free
+ *  
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t
 tsfree(
     tsalloctr_t    *tsalloctr,
     void           *addr
 );
 
+/**
+ *  @brief  calculates the size class for a given allocation request
+ *
+ *  @param  pagesize    the configured or system page size
+ *  @param  nbytes      the requested allocation size in bytes
+ *  
+ *  @return the computed size class corresponding to the requested bytes or `-1` on failure
+*/
 ts_szclass_t
 tsszclass_of_nbytes(
     size_t  pagesize,
     size_t  nbytes
 );
 
+/**
+ *  @brief  enables the thread cache (tcache) for the specified allocator
+ *
+ *  @param  tsalloctr   pointer to the allocator instance
+*/
 void 
 ts_turnon_tcache(
     tsalloctr_t    *tsalloctr
 );
 
+/**
+ *  @brief  disables the thread cache (tcache) for the specified allocator
+ *
+ *  @param  tsalloctr   pointer to the allocator instance
+ *  
+ *  @return `TSALLOC_SUCCESS` on success, otherwise an appropriate error code
+*/
 ts_err_t 
 ts_turnoff_tcache(
     tsalloctr_t    *tsalloctr
 );
 
+/**
+ *  @brief  retrieves the current error state of the allocator
+ *
+ *  @param  tsalloctr   pointer to the allocator instance
+ *  @param  state       pointer to destination struct to populate with the error state
+*/
 void 
 ts_req_errstate(
     tsalloctr_t    *tsalloctr,

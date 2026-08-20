@@ -41,7 +41,7 @@ sys_page_size(void)
     return atomic_load(&cached_page_size);
 }
 
-/*
+/**
  * @brief   retrives system error-code implemented by os
  *
  * @return  exact os error-code

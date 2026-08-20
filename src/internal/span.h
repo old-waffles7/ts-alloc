@@ -75,10 +75,10 @@ typedef struct span span_t;
 /**
  * @brief   creates and maps a new memory span
  *
- * @param   glob_state   pointer to the global allocator state
- * @param   arena_cfg    pointer to the arena configuration struct
- * @param   spanpool     pointer to the object pool for span metadata
- * @param   dest         double pointer to output the newly created span
+ * @param   glob_state  pointer to the global allocator state
+ * @param   arena_cfg   pointer to the arena configuration struct
+ * @param   spanpool    pointer to the object pool for span metadata
+ * @param   dest        double pointer to output the newly created span
  * @param   szclass     size class of the span being created
  * @param   epoch       pointer to the epoch used as the age of the newly minted span
  * @param   arena_uid   unique identifier of the arena owning the span

@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    slab.h
  * @brief   definitions of functionalities for managing memory slabs
  */
@@ -21,7 +21,7 @@
 typedef struct span span_t;
 
 
-/*
+/**
  * @struct  slab
  * @brief   metadata for a memory slab
  */
@@ -34,7 +34,7 @@ struct slab
 };
 typedef struct slab slab_t;
 
-/*
+/**
  * @brief   initializes a new memory slab
  *
  * @param   slabinfo    pointer to the slab information/layout configuration
@@ -52,7 +52,7 @@ slab_init(
     int32_t                     glob_uid
 );
 
-/*
+/**
  * @brief   deinitializes a memory slab and returns its metadata to the pool
  *
  * @param   slabpool    pointer to the object pool used for slab metadata
@@ -64,7 +64,7 @@ slab_deinit(
     span_t     *span
 );
 
-/*
+/**
  * @brief   retrieves a free block from a slab using its bitmap
  *
  * @param   span    pointer to the span containing the slab metadata and memory
@@ -76,7 +76,7 @@ slab_get_block(
     span_t *span
 );
 
-/*
+/**
  * @brief   frees a block back to a slab by clearing its bitmap entry
  *
  * @param   span    pointer to the span containing the slab metadata and memory

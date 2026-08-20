@@ -1,4 +1,4 @@
-/*
+/**
  * @file    tsalloc_config.h
  * @brief   definitions and inline routines for parsing and accessing allocator configurations
  */
@@ -19,7 +19,7 @@ typedef int32_t         ts_szclass_t;
 typedef tsalloc_cfg_t   glob_alloc_state_t;
 
 
-/*
+/**
  * @struct  tsalloc_szclass_request
  * @brief   encapsulates the parsed size class index and its allocation type (slab vs span)
  */
@@ -31,7 +31,7 @@ struct tsalloc_szclass_request
 typedef struct tsalloc_szclass_request  tsalloc_szreq_t;
 
 
-/*
+/**
  * @brief   determines if a requested allocation size falls within the slab limit
  *
  * @param   cfg     pointer to the allocator configuration structure
@@ -47,7 +47,7 @@ tsconfig_isslab_alloc(
     return nbytes <= cfg->slab_alloc_max;
 }
 
-/*
+/**
  * @brief   calculates the size class index and type for a given byte size
  *
  * @param   cfg     pointer to the allocator configuration structure
@@ -139,7 +139,7 @@ tsconfig_get_span_szclass(
     return (ts_szclass_t)((epoch << glob_state->steps_per_pow2_shift) + offset);
 }
 
-/*
+/**
  * @brief   retrieves the slab metadata associated with a specific slab size class
  *
  * @param   cfg      pointer to the allocator configuration structure
@@ -160,7 +160,7 @@ tsconfig_get_slabinfo(
     return &(cfg->slab_infos[szclass]);
 }
 
-/*
+/**
  * @brief   retrieves the maximum byte size bounded by a given size class
  *
  * @param   cfg      pointer to the allocator configuration structure

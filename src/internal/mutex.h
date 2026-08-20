@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    mutex.h
  * @brief   posix-sephamore backed mutex with adaptive spin support
  */
@@ -39,7 +39,7 @@ enum TSALLOC_MUTEX_STATE    : int
 typedef enum TSALLOC_MUTEX_STATE    tsalloc_mtx_state_t;
 
 
-/*
+/**
  * @struct  mutex
  * @brief   wrapper for posix-sephamore primitive
  */
@@ -52,7 +52,7 @@ struct mutex
 typedef struct mutex mutex_t;
 
 
-/*
+/**
  * @brief   initializes the mutex
  * 
  * @param   mutex       pointer to the mutex to initialize
@@ -83,7 +83,7 @@ mutex_init(
     return TSALLOC_SUCCESS;
 }
 
-/*
+/**
  * @brief   destroys the mutex
  * 
  * @param   mutex       pointer to the mutex to deinitialize
@@ -112,7 +112,7 @@ mutex_deinit(
     return TSALLOC_SUCCESS;
 }
 
-/*
+/**
  * @brief   acquires the mutex lock using adaptive spinning
  * 
  * @param   mutex   pointer to the mutex to lock
@@ -156,7 +156,7 @@ mutex_lock(
     atomic_store_explicit(&(mutex->locker_tid), pthread_self(), memory_order_release); 
 }
 
-/*
+/**
  * @brief   releases the mutex lock
  * 
  * @param   mutex   pointer to the mutex to unlock

@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    scache.h
  * @brief   definitions of functionalities for managing the span cache
  */
@@ -23,7 +23,7 @@
 #include    "arenaconfig.h"
 
 
-/*
+/**
  * @struct  span_cache
  * @brief   metadata and resources for a span cache
  */
@@ -42,7 +42,7 @@ struct span_cache
 };
 typedef struct span_cache   scache_t;
 
-/*
+/**
  * @brief   calculates the required auxiliary memory size for the span cache
  *
  * @param   global_config  pointer to the global allocation state
@@ -64,7 +64,7 @@ scache_auxil_mem_size(
     return nbytes;
 }
 
-/*
+/**
  * @brief   queries the pagetrie for the span containing a given address
  *
  * @param   cache   pointer to the span cache
@@ -82,7 +82,7 @@ scache_query(
 }
 
 
-/*
+/**
  * @brief   initializes a span cache
  *
  * @param   global_state    pointer to the global allocation state
@@ -106,7 +106,7 @@ scache_init(
     int32_t                     glob_uid
 );
 
-/*
+/**
  * @brief   deinitializes a span cache without explicitly unmapping memory
  *
  * @param   cache      pointer to the span cache being deinitialized
@@ -122,7 +122,7 @@ scache_deinit(
     int32_t     glob_uid
 );
 
-/*
+/**
  * @brief   destroys a span cache and explicitly unmaps its origin mappings
  *
  * @param   arena_cfg   pointer to the arena configuration
@@ -141,7 +141,7 @@ scache_destroy(
     int32_t             glob_uid
 );
 
-/*
+/**
  * @brief   returns an allocated span to the span cache
  *
  * @param   glob_state  pointer to the global allocation state
@@ -163,7 +163,7 @@ scache_put_span(
     int32_t                     glob_uid
 );
 
-/*
+/**
  * @brief   retrieves a span suitable for a requested size class
  *
  * @param   slab_init_info  optional slab initialization information; when
@@ -188,7 +188,7 @@ scache_get_span(
     int32_t                     glob_uid
 );
 
-/*
+/**
  * @brief   retrieves a specially aligned span suitable for a requested size class
  *
  * @param   slab_init_info  optional slab initialization information; when
@@ -217,7 +217,7 @@ scache_get_span_aligned(
     int32_t                     glob_uid
 );
 
-/*
+/**
  * @brief   decays cached spans across all size-class bins
  *
  * @param   arena_cfg   pointer to the arena configuration

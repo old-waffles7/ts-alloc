@@ -1,5 +1,5 @@
 
-/*
+/**
  * @file    pagetrie.h
  * @brief   3-level radix tree, implements mapping of virtual pages to keys
  */
@@ -15,7 +15,7 @@
 #include    <stdatomic.h>
 
 
-/*
+/**
  * @struct  pagetrie
  * @brief   root state for the radix tree
  */
@@ -29,7 +29,7 @@ struct pagetrie
 typedef struct pagetrie pagetrie_t;
 
 
-/*
+/**
  * @brief   initializes the pagetrie and its internal object pool
  * 
  * @param   pagetrie    pointer to the pagetrie to initialize
@@ -43,7 +43,7 @@ pagetrie_init(
     int32_t       glob_uid
 );
 
-/*
+/**
  * @brief   destroys the pagetrie and frees all associated nodes
  *
  * @param   pagetrie    pointer to the pagetrie to deinitialize
@@ -57,7 +57,7 @@ pagetrie_deinit(
     int32_t       glob_uid
 );
 
-/*
+/**
  * @brief   inserts data into the pagetrie for a specific virtual page
  * 
  * @param   pagetrie    pointer to the pagetrie instance
@@ -77,7 +77,7 @@ pagetrie_insert(
     int32_t       glob_uid
 );
 
-/*
+/**
  * @brief   removes the metadata key associated with a virtual page
  * 
  * @param   pagetrie    pointer to the pagetrie instance
@@ -91,7 +91,7 @@ pagetrie_remove(
     size_t        nbytes                                                
 );
 
-/*
+/**
  * @brief   retrieves the metadata key associated with a virtual page
  * 
  * @param   pagetrie    pointer to the pagetrie instance
