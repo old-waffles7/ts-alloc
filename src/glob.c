@@ -20,7 +20,7 @@
 
 _Thread_local static tcache_t  *tlocal_bcache[TSALLOC_MAXN_GLOBS];
 _Thread_local static bool       tlocal_bcache_isoff[TSALLOC_MAXN_GLOBS];
-
+static bool                     always_tcache_off[TSALLOC_MAXN_GLOBS];
 
 static pthread_key_t    tsalloc_tcleanup_key;
 static bool             tsalloc_tcleanup_ready;
@@ -99,7 +99,7 @@ glob_alloc_block(
 ){
     ts_err_t    ret;
 
-    if (tlocal_bcache_isoff[glob_uid])
+    if (always_tcache_off[glob->glob_uid] || tlocal_bcache_isoff[glob_uid])
     {
         arena_t    *arena;
 
@@ -178,7 +178,7 @@ glob_free_block(
     ts_szclass_t    szclass,
     int32_t         glob_uid
 ){
-    if (tlocal_bcache_isoff[glob_uid])
+    if (always_tcache_off[glob->glob_uid] || tlocal_bcache_isoff[glob_uid])
     {
         glob_put_batch_inarena(glob, ((byte_t**)&addr), 1);
 
@@ -349,6 +349,8 @@ glob_create(
         auxil_mem += nbytes_arena_auxil_mem;
     }
 
+    always_tcache_off[glob->glob_uid]   = glob->arena_cfg.always_tcache_off;
+
     atomic_store_explicit(allocator_isactive + glob->glob_uid, true, memory_order_release);
     atomic_store_explicit(&glob_epoch, glob_uid + 1, memory_order_release);
     *dest = glob;
@@ -498,6 +500,11 @@ void
 glob_turnon_tcache(
     glob_t *glob
 ){
+    if (always_tcache_off[glob->glob_uid])
+    {
+        return;
+    }
+
     tlocal_bcache_isoff[glob->glob_uid] = false;
 }
 
@@ -505,6 +512,11 @@ ts_err_t
 glob_turnoff_tcache(
     glob_t *glob
 ){
+    if (always_tcache_off[glob->glob_uid])
+    {
+        return TSALLOC_SUCCESS;
+    }
+
     ts_err_t    ret;
     int32_t     glob_uid;
 

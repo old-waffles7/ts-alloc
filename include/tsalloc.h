@@ -139,6 +139,7 @@
 
         bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
         bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (treated as a single mapping). e.g. 2 contiguous mappings from POSIX `mmap` can be treated as a single mapping an unmaped with a single `unmap` invocation
+        bool    always_tcache_off;
     };
     typedef struct tsalloc_arena_config ts_arena_cfg_t;
 

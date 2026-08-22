@@ -120,6 +120,7 @@
 
         bool    unmap_on_termination;       ///< true if all mapped memory must be explicitly unmapped via `auxil_unmap` on program termination
         bool    allow_cross_origin_merge;   ///< true if contiguous regions from different map calls can be coalesced (e.g., POSIX `mmap`)
+        bool    always_tcache_off;
     };
 
 #endif      //TSALLOC_ARENACONFIG_DEFINED
